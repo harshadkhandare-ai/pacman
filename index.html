@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#f5c400" />
+    <title>FUNDA CHAMP</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell" aria-label="Funda Champ handheld game">
+      <section class="console" id="console">
+        <section class="display-panel" aria-label="Game screen">
+          <div class="screen-wrap" id="screenWrap">
+            <canvas id="gameCanvas" width="504" height="648" aria-label="Pac-Man game board"></canvas>
+
+            <div class="screen-overlay" id="startOverlay">
+              <div class="pixel-mark" aria-hidden="true"></div>
+              <p class="eyebrow">FUNDA ARCADE</p>
+              <h1>FUNDA<br />CHAMP</h1>
+              <p class="hint">CLEAR THE MAZE.<br />DODGE THE GHOSTS.</p>
+              <button class="start-button" id="startButton" type="button">PRESS START</button>
+              <p class="microcopy">D-PAD · SWIPE · ARROW KEYS</p>
+            </div>
+
+            <div class="screen-overlay compact hidden" id="pauseOverlay">
+              <p class="eyebrow">GAME PAUSED</p>
+              <h2>TAKE FIVE</h2>
+              <button class="start-button" id="resumeButton" type="button">RESUME</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="controls-panel" aria-label="Console controls">
+          <div class="controls-row">
+            <div class="dpad-well">
+              <div class="dpad" role="group" aria-label="Movement controls">
+                <button class="dpad-button up" data-direction="up" aria-label="Move up"><span>▲</span></button>
+                <button class="dpad-button left" data-direction="left" aria-label="Move left"><span>◀</span></button>
+                <div class="dpad-center" aria-hidden="true"><i></i></div>
+                <button class="dpad-button right" data-direction="right" aria-label="Move right"><span>▶</span></button>
+                <button class="dpad-button down" data-direction="down" aria-label="Move down"><span>▼</span></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="secondary-controls" aria-label="Game options">
+            <div class="mini-control">
+              <button class="mini-button" id="soundButton" type="button" aria-label="Mute sound">♪</button>
+              <span>SOUND</span>
+            </div>
+            <div class="mini-control">
+              <button class="mini-button" id="pauseButton" type="button" aria-label="Start game">▶</button>
+              <span>PLAY</span>
+            </div>
+          </div>
+
+          <div class="speaker-grille" aria-hidden="true">
+            <i></i><i></i><i></i><i></i><i></i>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
