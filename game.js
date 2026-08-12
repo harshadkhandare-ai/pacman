@@ -57,6 +57,9 @@
   };
   const OPPOSITE = { right: "left", left: "right", up: "down", down: "up", none: "none" };
   const GHOST_COLORS = ["#ff355e", "#ff85d6", "#42e6f5", "#ff9d3d"];
+  const TURN_WINDOW = 6;
+  const HOUSE_EXIT = { col: 10, row: 7 };
+  const HOUSE_CENTER = { col: 10, row: 9 };
 
   let board = [];
   let pelletsLeft = 0;
@@ -155,9 +158,10 @@
       const ghost = makeActor(col, row, dir, Math.min(88 + level * 3, 110));
       ghost.color = GHOST_COLORS[index];
       ghost.index = index;
-      ghost.home = { col, row };
+      ghost.home = HOUSE_CENTER;
       ghost.releaseAt = phaseTime + index * 1.25;
       ghost.eaten = false;
+      ghost.inHouse = true;
       return ghost;
     });
     frightenedUntil = 0;
@@ -177,7 +181,7 @@
     }
     state = "playing";
     resetMusicClock(0.22);
-    pauseButton.textContent = "Ⅱ";
+    pauseButton.classList.add("is-playing");
     pauseButton.setAttribute("aria-label", "Pause game");
     pauseButton.nextElementSibling.textContent = "PAUSE";
     startOverlay.classList.add("hidden");
@@ -193,14 +197,14 @@
     }
     if (state === "playing") {
       state = "paused";
-      pauseButton.textContent = "▶";
+      pauseButton.classList.remove("is-playing");
       pauseButton.setAttribute("aria-label", "Resume game");
       pauseButton.nextElementSibling.textContent = "PLAY";
       pauseOverlay.classList.remove("hidden");
     } else if (state === "paused") {
       state = "playing";
       resetMusicClock(0.08);
-      pauseButton.textContent = "Ⅱ";
+      pauseButton.classList.add("is-playing");
       pauseButton.setAttribute("aria-label", "Pause game");
       pauseButton.nextElementSibling.textContent = "PAUSE";
       pauseOverlay.classList.add("hidden");
@@ -300,10 +304,10 @@
     return board[row][col];
   }
 
-  function isWalkable(col, row, actorIsGhost = false) {
+  function isWalkable(col, row, ghostActor = null) {
     const cell = cellAt(col, row);
     if (cell === "#") return false;
-    if (cell === "=" && !actorIsGhost) return false;
+    if (cell === "=") return Boolean(ghostActor && (ghostActor.inHouse || ghostActor.eaten));
     return true;
   }
 
@@ -311,10 +315,10 @@
     return actor.progress < 0.001;
   }
 
-  function canMove(actor, dir, ghost = false) {
+  function canMove(actor, dir, ghostActor = null) {
     if (dir === "none") return false;
     const d = DIRS[dir];
-    return isWalkable(actor.col + d.x, actor.row + d.y, ghost);
+    return isWalkable(actor.col + d.x, actor.row + d.y, ghostActor);
   }
 
   function centerActor(actor) {
@@ -323,8 +327,49 @@
     actor.y = center.y;
   }
 
-  function moveActor(actor, dt, ghost = false) {
+  function completeTile(actor, direction) {
+    actor.col += direction.x;
+    actor.row += direction.y;
+    actor.progress = 0;
+
+    if (actor.col < 0) actor.col = COLS;
+    else if (actor.col >= COLS) actor.col = -1;
+
+    centerActor(actor);
+  }
+
+  function applyTurnAssist(actor, ghostActor) {
+    if (
+      ghostActor ||
+      actor.progress <= 0 ||
+      actor.dir === "none" ||
+      actor.wanted === actor.dir ||
+      actor.wanted === OPPOSITE[actor.dir]
+    ) return;
+
+    // Forgive a slightly early or late perpendicular press at intersections.
+    if (actor.progress <= TURN_WINDOW && canMove(actor, actor.wanted, null)) {
+      actor.progress = 0;
+      centerActor(actor);
+      actor.dir = actor.wanted;
+      return;
+    }
+
+    if (TILE - actor.progress <= TURN_WINDOW) {
+      const direction = DIRS[actor.dir];
+      const nextTile = { col: actor.col + direction.x, row: actor.row + direction.y };
+      if (canMove(nextTile, actor.wanted, null)) {
+        completeTile(actor, direction);
+        actor.dir = actor.wanted;
+      }
+    }
+  }
+
+  function moveActor(actor, dt, isGhost = false) {
     let distanceLeft = actor.speed * dt;
+    const ghostActor = isGhost ? actor : null;
+
+    applyTurnAssist(actor, ghostActor);
 
     // Reversing direction should feel immediate, even between tile centers.
     if (
@@ -344,8 +389,8 @@
     while (distanceLeft > 0) {
       if (nearCenter(actor)) {
         centerActor(actor);
-        if (actor.wanted && canMove(actor, actor.wanted, ghost)) actor.dir = actor.wanted;
-        if (!canMove(actor, actor.dir, ghost)) {
+        if (actor.wanted && canMove(actor, actor.wanted, ghostActor)) actor.dir = actor.wanted;
+        if (!canMove(actor, actor.dir, ghostActor)) {
           actor.dir = "none";
           return;
         }
@@ -359,18 +404,10 @@
       distanceLeft -= step;
 
       if (actor.progress >= TILE - 0.001) {
-        actor.col += direction.x;
-        actor.row += direction.y;
-        actor.progress = 0;
-
-        if (actor.col < 0) {
-          actor.col = COLS;
-          actor.x = WIDTH + TILE / 2;
-        } else if (actor.col >= COLS) {
-          actor.col = -1;
-          actor.x = -TILE / 2;
-        }
-        centerActor(actor);
+        completeTile(actor, direction);
+        // Ghost AI chooses at tile centers. Do not spend this frame's tiny
+        // remainder before it has selected the next corridor.
+        if (isGhost) return;
       }
     }
 
@@ -379,8 +416,11 @@
   function chooseGhostDirection(ghost) {
     if (!nearCenter(ghost)) return;
     centerActor(ghost);
+    if (ghost.inHouse && !ghost.eaten && ghost.col === HOUSE_EXIT.col && ghost.row <= HOUSE_EXIT.row) {
+      ghost.inHouse = false;
+    }
     const options = ["up", "left", "down", "right"].filter((dir) =>
-      dir !== OPPOSITE[ghost.dir] && canMove(ghost, dir, true)
+      dir !== OPPOSITE[ghost.dir] && canMove(ghost, dir, ghost)
     );
     if (!options.length) {
       ghost.wanted = OPPOSITE[ghost.dir];
@@ -392,6 +432,8 @@
 
     if (ghost.eaten) {
       target = ghost.home;
+    } else if (ghost.inHouse) {
+      target = HOUSE_EXIT;
     } else if (frightened) {
       ghost.wanted = options[Math.floor(Math.random() * options.length)];
       return;
@@ -406,7 +448,7 @@
       target = distance > 7 ? { col: player.col, row: player.row } : { col: 1, row: ROWS - 2 };
     }
 
-    const scatter = Math.floor(phaseTime / 7) % 4 === 0 && !ghost.eaten;
+    const scatter = Math.floor(phaseTime / 7) % 4 === 0 && !ghost.eaten && !ghost.inHouse;
     if (scatter) {
       const corners = [{ col: COLS - 2, row: 1 }, { col: 1, row: 1 }, { col: COLS - 2, row: ROWS - 2 }, { col: 1, row: ROWS - 2 }];
       target = corners[ghost.index];
@@ -525,7 +567,7 @@
     window.setTimeout(() => {
       if (lives <= 0) {
         state = "gameover";
-        pauseButton.textContent = "▶";
+        pauseButton.classList.remove("is-playing");
         pauseButton.setAttribute("aria-label", "Start game");
         pauseButton.nextElementSibling.textContent = "PLAY";
         startOverlay.querySelector(".eyebrow").textContent = `SCORE ${score}`;
@@ -556,8 +598,17 @@
       const frightened = phaseTime < frightenedUntil && !ghost.eaten;
       ghost.speed = ghost.eaten ? 150 : frightened ? 66 : Math.min(88 + level * 3, 110);
       moveActor(ghost, dt, true);
-      if (ghost.eaten && ghost.col === ghost.home.col && ghost.row === ghost.home.row) {
+      if (
+        ghost.eaten &&
+        nearCenter(ghost) &&
+        ghost.col === HOUSE_CENTER.col &&
+        ghost.row === HOUSE_CENTER.row
+      ) {
         ghost.eaten = false;
+        ghost.inHouse = true;
+        ghost.dir = "up";
+        ghost.wanted = "up";
+        ghost.releaseAt = phaseTime + 0.55;
         ghost.speed = 90;
       }
     });
@@ -804,7 +855,7 @@
   soundButton.addEventListener("click", () => {
     soundOn = !soundOn;
     soundButton.classList.toggle("active", !soundOn);
-    soundButton.textContent = soundOn ? "♪" : "×";
+    soundButton.classList.toggle("muted", !soundOn);
     soundButton.setAttribute("aria-label", soundOn ? "Mute sound" : "Turn sound on");
     if (soundOn) {
       ensureAudio();
