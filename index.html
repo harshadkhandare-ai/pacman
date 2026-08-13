@@ -9,17 +9,46 @@
   </head>
   <body>
     <main class="app-shell" aria-label="Funda Champ handheld game">
+      <section class="landing-page" id="landingPage" aria-label="Funda Champ start page">
+        <div class="landing-grid" aria-hidden="true"></div>
+        <div class="landing-content">
+          <p class="landing-kicker">FUNDA ARCADE PRESENTS</p>
+
+          <div class="landing-chase" aria-hidden="true">
+            <span class="landing-pacman"></span>
+            <i></i><i></i><i></i><i></i>
+            <span class="landing-ghost ghost-red"><b></b><b></b></span>
+            <span class="landing-ghost ghost-pink"><b></b><b></b></span>
+            <span class="landing-ghost ghost-blue"><b></b><b></b></span>
+          </div>
+
+          <h1 class="landing-title">FUNDA<br /><span>CHAMP</span></h1>
+          <p class="landing-tagline">A POCKET-SIZED MAZE ADVENTURE</p>
+
+          <button class="landing-start" id="startButton" type="button">
+            <span>START GAME</span>
+            <i aria-hidden="true"></i>
+          </button>
+
+          <div class="landing-stats">
+            <div>
+              <span>TODAY'S BEST</span>
+              <strong id="landingBestScore">000000</strong>
+            </div>
+            <div>
+              <span>STARTING MODE</span>
+              <strong>EASY</strong>
+            </div>
+          </div>
+        </div>
+
+        <p class="landing-footer">FUNDA CHAMP · ORIGINAL ARCADE EDITION</p>
+      </section>
+
       <section class="console" id="console">
         <section class="display-panel" aria-label="Game screen">
           <div class="screen-wrap" id="screenWrap">
             <canvas id="gameCanvas" width="504" height="648" aria-label="Pac-Man game board"></canvas>
-
-            <div class="screen-overlay" id="startOverlay">
-              <div class="pixel-mark" aria-hidden="true"></div>
-              <p class="eyebrow">FUNDA ARCADE</p>
-              <h1>FUNDA<br />CHAMP</h1>
-              <button class="start-button" id="startButton" type="button">PRESS START</button>
-            </div>
 
             <div class="screen-overlay compact hidden" id="pauseOverlay">
               <p class="eyebrow">GAME PAUSED</p>

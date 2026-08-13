@@ -3,7 +3,8 @@
 
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
-  const startOverlay = document.getElementById("startOverlay");
+  const landingPage = document.getElementById("landingPage");
+  const landingBestScore = document.getElementById("landingBestScore");
   const pauseOverlay = document.getElementById("pauseOverlay");
   const startButton = document.getElementById("startButton");
   const resumeButton = document.getElementById("resumeButton");
@@ -14,6 +15,7 @@
   const pauseButton = document.getElementById("pauseButton");
   const soundButton = document.getElementById("soundButton");
   const screenWrap = document.getElementById("screenWrap");
+  const dpadWell = document.querySelector(".dpad-well");
 
   const TILE = 24;
   const HUD = 72;
@@ -147,6 +149,8 @@
   let nextMusicNoteAt = 0;
   let animationId = null;
   let touchStart = null;
+  let activeDirectionButton = null;
+  let directionFeedbackTimer = 0;
   let currentRunId = "";
   let activeMazeBounds = MAZE_BOUNDS[0];
 
@@ -172,6 +176,17 @@
       window.localStorage.setItem("pocket-chomp-high", String(highScore));
     } catch (_error) {
       // Storage can be unavailable when the game is opened directly from disk.
+    }
+  }
+
+  function loadTodayBest() {
+    try {
+      const entries = JSON.parse(window.localStorage.getItem(dailyScoreKey()) || "[]");
+      return Array.isArray(entries) && entries.length
+        ? Math.max(...entries.map((entry) => Number(entry.score) || 0))
+        : 0;
+    } catch (_error) {
+      return 0;
     }
   }
 
@@ -364,7 +379,8 @@
     pauseButton.classList.add("is-playing");
     pauseButton.setAttribute("aria-label", "Pause game");
     pauseButton.nextElementSibling.textContent = "PAUSE";
-    startOverlay.classList.add("hidden");
+    landingPage.classList.add("is-leaving");
+    window.setTimeout(() => landingPage.classList.add("hidden"), 360);
     pauseOverlay.classList.add("hidden");
     endOverlay.classList.add("hidden");
     blip(440, 0.055, "square", 0.035);
@@ -1002,19 +1018,45 @@
     if (state === "title" || state === "gameover") startGame(true);
     if (state !== "playing") return;
     player.wanted = direction;
+    applyTurnAssist(player, null);
+
     const button = document.querySelector(`[data-direction="${direction}"]`);
     if (button) {
+      if (activeDirectionButton && activeDirectionButton !== button) {
+        activeDirectionButton.classList.remove("active");
+      }
+      window.clearTimeout(directionFeedbackTimer);
+      activeDirectionButton = button;
       button.classList.add("active");
-      window.setTimeout(() => button.classList.remove("active"), 100);
+      directionFeedbackTimer = window.setTimeout(() => {
+        button.classList.remove("active");
+        if (activeDirectionButton === button) activeDirectionButton = null;
+      }, 70);
     }
   }
 
-  document.querySelectorAll("[data-direction]").forEach((button) => {
-    const direction = button.dataset.direction;
-    button.addEventListener("pointerdown", (event) => {
-      event.preventDefault();
-      setDirection(direction);
-    });
+  dpadWell.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+
+    const button = event.target.closest("[data-direction]");
+    if (button) {
+      setDirection(button.dataset.direction);
+      return;
+    }
+
+    // Make the whole circular well a forgiving touch target. Taps outside
+    // the visible cross are routed to the closest directional arm.
+    const bounds = dpadWell.getBoundingClientRect();
+    const dx = event.clientX - (bounds.left + bounds.width / 2);
+    const dy = event.clientY - (bounds.top + bounds.height / 2);
+    const centerDeadZone = Math.min(bounds.width, bounds.height) * 0.1;
+    if (Math.hypot(dx, dy) < centerDeadZone) return;
+
+    setDirection(
+      Math.abs(dx) > Math.abs(dy)
+        ? (dx > 0 ? "right" : "left")
+        : (dy > 0 ? "down" : "up")
+    );
   });
 
   window.addEventListener("keydown", (event) => {
@@ -1075,6 +1117,7 @@
 
   makeBoard();
   resetActors();
+  landingBestScore.textContent = String(loadTodayBest()).padStart(6, "0");
   draw();
   animationId = requestAnimationFrame(loop);
 })();
