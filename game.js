@@ -65,6 +65,58 @@
   };
   const OPPOSITE = { right: "left", left: "right", up: "down", down: "up", none: "none" };
   const GHOST_COLORS = ["#ff355e", "#ff85d6", "#42e6f5", "#ff9d3d"];
+  const GHOST_DIFFICULTIES = [
+    {
+      label: "EASY",
+      speed: 60,
+      frightenedSpeed: 38,
+      releases: [1, 7, 16, 26],
+      accuracy: 0.28,
+      scatter: 9,
+      chase: 5,
+      powerSeconds: 9
+    },
+    {
+      label: "EASY+",
+      speed: 68,
+      frightenedSpeed: 44,
+      releases: [0.75, 5, 11, 18],
+      accuracy: 0.42,
+      scatter: 8,
+      chase: 6,
+      powerSeconds: 8
+    },
+    {
+      label: "NORMAL",
+      speed: 77,
+      frightenedSpeed: 50,
+      releases: [0.5, 3.5, 7.5, 12],
+      accuracy: 0.58,
+      scatter: 7,
+      chase: 7,
+      powerSeconds: 7
+    },
+    {
+      label: "HARD",
+      speed: 87,
+      frightenedSpeed: 57,
+      releases: [0.25, 2.25, 4.5, 7],
+      accuracy: 0.74,
+      scatter: 6,
+      chase: 8,
+      powerSeconds: 6
+    },
+    {
+      label: "EXPERT",
+      speed: 98,
+      frightenedSpeed: 64,
+      releases: [0, 1.25, 2.5, 3.75],
+      accuracy: 0.9,
+      scatter: 5,
+      chase: 10,
+      powerSeconds: 5
+    }
+  ];
   const TURN_WINDOW = 6;
   const HOUSE_EXIT = { col: 10, row: 7 };
   const HOUSE_CENTER = { col: 10, row: 9 };
@@ -172,6 +224,10 @@
     return { x: col * TILE + TILE / 2, y: HUD + row * TILE + TILE / 2 };
   }
 
+  function ghostDifficulty() {
+    return GHOST_DIFFICULTIES[Math.min(level - 1, GHOST_DIFFICULTIES.length - 1)];
+  }
+
   function mazeDisplayTransform() {
     const { left, right, top, bottom } = activeMazeBounds;
     const mazeWidth = (right - left + 1) * TILE;
@@ -276,12 +332,13 @@
       [11, 9, "left"],
       [10, 10, "up"]
     ];
+    const difficulty = ghostDifficulty();
     ghosts = starts.map(([col, row, dir], index) => {
-      const ghost = makeActor(col, row, dir, Math.min(88 + level * 3, 110));
+      const ghost = makeActor(col, row, dir, difficulty.speed);
       ghost.color = GHOST_COLORS[index];
       ghost.index = index;
       ghost.home = HOUSE_CENTER;
-      ghost.releaseAt = phaseTime + index * 1.25;
+      ghost.releaseAt = phaseTime + difficulty.releases[index];
       ghost.eaten = false;
       ghost.inHouse = true;
       return ghost;
@@ -551,6 +608,7 @@
       return;
     }
 
+    const difficulty = ghostDifficulty();
     const frightened = phaseTime < frightenedUntil && !ghost.eaten;
     let target = { col: player.col, row: player.row };
 
@@ -569,10 +627,13 @@
       target = { col: player.col * 2 - red.col, row: player.row * 2 - red.row };
     } else if (ghost.index === 3) {
       const distance = Math.hypot(player.col - ghost.col, player.row - ghost.row);
-      target = distance > 7 ? { col: player.col, row: player.row } : { col: 1, row: ROWS - 2 };
+      target = distance > 7
+        ? { col: player.col, row: player.row }
+        : { col: activeMazeBounds.left + 1, row: activeMazeBounds.bottom - 1 };
     }
 
-    const scatter = Math.floor(phaseTime / 7) % 4 === 0 && !ghost.eaten && !ghost.inHouse;
+    const modeTime = phaseTime % (difficulty.scatter + difficulty.chase);
+    const scatter = modeTime < difficulty.scatter && !ghost.eaten && !ghost.inHouse;
     if (scatter) {
       const { left, right, top, bottom } = activeMazeBounds;
       const corners = [
@@ -582,6 +643,9 @@
         { col: left + 1, row: bottom - 1 }
       ];
       target = corners[ghost.index];
+    } else if (!ghost.eaten && !ghost.inHouse && Math.random() > difficulty.accuracy) {
+      ghost.wanted = options[Math.floor(Math.random() * options.length)];
+      return;
     }
 
     options.sort((a, b) => {
@@ -607,7 +671,7 @@
       board[player.row][player.col] = " ";
       pelletsLeft -= 1;
       addScore(50);
-      frightenedUntil = phaseTime + 7;
+      frightenedUntil = phaseTime + ghostDifficulty().powerSeconds;
       ghostChain = 0;
       ghosts.forEach((ghost) => {
         if (!ghost.eaten) ghost.dir = OPPOSITE[ghost.dir];
@@ -723,8 +787,9 @@
     ghosts.forEach((ghost) => {
       if (phaseTime < ghost.releaseAt) return;
       chooseGhostDirection(ghost);
+      const difficulty = ghostDifficulty();
       const frightened = phaseTime < frightenedUntil && !ghost.eaten;
-      ghost.speed = ghost.eaten ? 150 : frightened ? 66 : Math.min(88 + level * 3, 110);
+      ghost.speed = ghost.eaten ? 150 : frightened ? difficulty.frightenedSpeed : difficulty.speed;
       moveActor(ghost, dt, true);
       if (
         ghost.eaten &&
@@ -737,7 +802,7 @@
         ghost.dir = "up";
         ghost.wanted = "up";
         ghost.releaseAt = phaseTime + 0.55;
-        ghost.speed = 90;
+        ghost.speed = difficulty.speed;
       }
     });
     checkCollisions();
@@ -763,6 +828,7 @@
     drawPixelText("HIGH", WIDTH / 2, 8, 14, "center", "#5ef0d0");
     drawPixelText(String(highScore).padStart(6, "0"), WIDTH / 2, 31, 17, "center");
     drawPixelText(`LV ${level}`, WIDTH - 24, 10, 15, "right", "#ffdf31");
+    drawPixelText(ghostDifficulty().label, WIDTH - 24, 31, 10, "right", "#ff85d6");
     for (let i = 0; i < lives; i += 1) drawPacman(WIDTH - 29 - i * 23, 48, 8, Math.PI, 0.24);
   }
 
