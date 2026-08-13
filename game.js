@@ -572,7 +572,6 @@
         pauseButton.nextElementSibling.textContent = "PLAY";
         startOverlay.querySelector(".eyebrow").textContent = `SCORE ${score}`;
         startOverlay.querySelector("h1").innerHTML = "GAME<br />OVER";
-        startOverlay.querySelector(".hint").innerHTML = `HIGH SCORE ${highScore}<br />TRY THE MAZE AGAIN`;
         startButton.textContent = "PLAY AGAIN";
         startOverlay.classList.remove("hidden");
       } else {
@@ -846,7 +845,6 @@
   startButton.addEventListener("click", () => {
     startOverlay.querySelector(".eyebrow").textContent = "FUNDA ARCADE";
     startOverlay.querySelector("h1").innerHTML = "FUNDA<br />CHAMP";
-    startOverlay.querySelector(".hint").innerHTML = "CLEAR THE MAZE.<br />DODGE THE GHOSTS.";
     startButton.textContent = "PRESS START";
     startGame(true);
   });

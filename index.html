@@ -18,9 +18,7 @@
               <div class="pixel-mark" aria-hidden="true"></div>
               <p class="eyebrow">FUNDA ARCADE</p>
               <h1>FUNDA<br />CHAMP</h1>
-              <p class="hint">CLEAR THE MAZE.<br />DODGE THE GHOSTS.</p>
               <button class="start-button" id="startButton" type="button">PRESS START</button>
-              <p class="microcopy">D-PAD · SWIPE · ARROW KEYS</p>
             </div>
 
             <div class="screen-overlay compact hidden" id="pauseOverlay">
@@ -46,11 +44,24 @@
 
           <div class="secondary-controls" aria-label="Game options">
             <div class="mini-control">
-              <button class="mini-button sound-button" id="soundButton" type="button" aria-label="Mute sound"></button>
+              <button class="mini-button sound-button" id="soundButton" type="button" aria-label="Mute sound">
+                <span class="speaker-icon" aria-hidden="true">
+                  <i class="speaker-box"></i>
+                  <i class="speaker-cone"></i>
+                  <i class="speaker-wave"></i>
+                  <i class="speaker-slash"></i>
+                </span>
+              </button>
               <span>SOUND</span>
             </div>
             <div class="mini-control">
-              <button class="mini-button play-button" id="pauseButton" type="button" aria-label="Start game"></button>
+              <button class="mini-button play-button" id="pauseButton" type="button" aria-label="Start game">
+                <span class="play-icon" aria-hidden="true">
+                  <i class="play-triangle"></i>
+                  <i class="pause-bar pause-left"></i>
+                  <i class="pause-bar pause-right"></i>
+                </span>
+              </button>
               <span>PLAY</span>
             </div>
           </div>
