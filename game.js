@@ -7,6 +7,10 @@
   const pauseOverlay = document.getElementById("pauseOverlay");
   const startButton = document.getElementById("startButton");
   const resumeButton = document.getElementById("resumeButton");
+  const endOverlay = document.getElementById("endOverlay");
+  const endStartButton = document.getElementById("endStartButton");
+  const finalScore = document.getElementById("finalScore");
+  const leaderboardList = document.getElementById("leaderboardList");
   const pauseButton = document.getElementById("pauseButton");
   const soundButton = document.getElementById("soundButton");
   const screenWrap = document.getElementById("screenWrap");
@@ -24,25 +28,25 @@
   const RAW_MAP = [
     "#####################",
     "#.........#.........#",
-    "#o###.###.#.###.###o#",
+    "#o###...........###o#",
     "#...................#",
-    "#.###.#.#####.#.###.#",
-    "#.....#...#...#.....#",
-    "#####.### # ###.#####",
-    "    #.#       #.#    ",
-    "#####.# ##=## #.#####",
-    "     .  #   #  .     ",
+    "#.....###...###.....#",
+    "#...................#",
+    "#####.#.......#.#####",
+    "    #.#.......#.#    ",
+    "#####.#.##=##.#.#####",
+    "    ... #   # ...    ",
     "#####.# #   # #.#####",
     "    #.# ##### #.#    ",
     "#####.#       #.#####",
-    "     .# ##### #.     ",
+    "    ... ##### ...    ",
     "#####.# ##### #.#####",
-    "#.........#.........#",
-    "#.###.###.#.###.###.#",
-    "#o..#...........#..o#",
-    "###.#.#.#####.#.#.###",
-    "#.....#...#...#.....#",
-    "#.#######.#.#######.#",
+    "#...................#",
+    "#.....###...###.....#",
+    "#o.................o#",
+    "#...#.....#.....#...#",
+    "#...#...........#...#",
+    "#...#####...#####...#",
     "#...................#",
     "#.........#.........#",
     "#####################"
@@ -87,6 +91,7 @@
   let nextMusicNoteAt = 0;
   let animationId = null;
   let touchStart = null;
+  let currentRunId = "";
 
   const MUSIC_STEP_SECONDS = 0.125;
   const MUSIC_MELODY = [
@@ -111,6 +116,51 @@
     } catch (_error) {
       // Storage can be unavailable when the game is opened directly from disk.
     }
+  }
+
+  function dailyScoreKey() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    return `funda-champ-daily-${year}-${month}-${day}`;
+  }
+
+  function saveDailyScore() {
+    const entry = { id: currentRunId, score, level };
+    let entries = [];
+    try {
+      entries = JSON.parse(window.localStorage.getItem(dailyScoreKey()) || "[]");
+      if (!Array.isArray(entries)) entries = [];
+    } catch (_error) {
+      entries = [];
+    }
+    entries.push(entry);
+    entries.sort((a, b) => b.score - a.score || b.level - a.level);
+    entries = entries.slice(0, 5);
+    try {
+      window.localStorage.setItem(dailyScoreKey(), JSON.stringify(entries));
+    } catch (_error) {
+      // The current score still renders if browser storage is unavailable.
+    }
+    return entries;
+  }
+
+  function renderDailyLeaderboard(entries) {
+    leaderboardList.textContent = "";
+    entries.slice(0, 5).forEach((entry) => {
+      const item = document.createElement("li");
+      if (entry.id === currentRunId) item.classList.add("current");
+      const name = document.createElement("span");
+      const levelText = document.createElement("span");
+      const scoreText = document.createElement("span");
+      name.textContent = entry.id === currentRunId ? "YOU" : "PLAYER";
+      levelText.className = "board-level";
+      levelText.textContent = `LV ${entry.level}`;
+      scoreText.textContent = String(entry.score).padStart(6, "0");
+      item.append(name, levelText, scoreText);
+      leaderboardList.appendChild(item);
+    });
   }
 
   function tileCenter(col, row) {
@@ -175,6 +225,7 @@
       lives = 3;
       level = 1;
       bonusAwarded = false;
+      currentRunId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
       phaseTime = 0;
       makeBoard();
       resetActors();
@@ -186,6 +237,7 @@
     pauseButton.nextElementSibling.textContent = "PAUSE";
     startOverlay.classList.add("hidden");
     pauseOverlay.classList.add("hidden");
+    endOverlay.classList.add("hidden");
     blip(440, 0.055, "square", 0.035);
     blip(660, 0.08, "square", 0.025, 0.07);
   }
@@ -570,10 +622,9 @@
         pauseButton.classList.remove("is-playing");
         pauseButton.setAttribute("aria-label", "Start game");
         pauseButton.nextElementSibling.textContent = "PLAY";
-        startOverlay.querySelector(".eyebrow").textContent = `SCORE ${score}`;
-        startOverlay.querySelector("h1").innerHTML = "GAME<br />OVER";
-        startButton.textContent = "PLAY AGAIN";
-        startOverlay.classList.remove("hidden");
+        finalScore.textContent = String(score).padStart(6, "0");
+        renderDailyLeaderboard(saveDailyScore());
+        endOverlay.classList.remove("hidden");
       } else {
         resetActors();
         state = "playing";
@@ -647,12 +698,11 @@
         const x = col * TILE;
         const y = HUD + row * TILE;
         if (cell === "#") {
-          ctx.fillStyle = "#13276b";
+          ctx.fillStyle = "#0c1948";
           ctx.fillRect(x, y, TILE, TILE);
-          ctx.fillStyle = "#2453d5";
-          ctx.fillRect(x + 3, y + 3, TILE - 6, TILE - 6);
-          ctx.fillStyle = "#071238";
-          ctx.fillRect(x + 7, y + 7, TILE - 14, TILE - 14);
+          ctx.strokeStyle = "#2860e3";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x + 3, y + 3, TILE - 6, TILE - 6);
         } else if (cell === "=") {
           ctx.fillStyle = "#ff72ba";
           ctx.fillRect(x + 2, y + TILE / 2 - 2, TILE - 4, 4);
@@ -843,11 +893,9 @@
   });
 
   startButton.addEventListener("click", () => {
-    startOverlay.querySelector(".eyebrow").textContent = "FUNDA ARCADE";
-    startOverlay.querySelector("h1").innerHTML = "FUNDA<br />CHAMP";
-    startButton.textContent = "PRESS START";
     startGame(true);
   });
+  endStartButton.addEventListener("click", () => startGame(true));
   resumeButton.addEventListener("click", togglePause);
   pauseButton.addEventListener("click", togglePause);
   soundButton.addEventListener("click", () => {
