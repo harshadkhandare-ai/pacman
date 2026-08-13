@@ -311,8 +311,12 @@ button {
 .speaker-icon,
 .play-icon {
   position: absolute;
-  inset: 0;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
   display: block;
+  transform: translate(-50%, -50%);
 }
 
 .speaker-icon i,
@@ -322,42 +326,38 @@ button {
 }
 
 .speaker-box {
-  left: 25%;
-  top: 40%;
-  width: 17%;
-  height: 22%;
+  left: 1px;
+  top: 9px;
+  width: 7px;
+  height: 9px;
   border-radius: 2px;
   background: #e6e7eb;
 }
 
 .speaker-cone {
-  left: 38%;
-  top: 31%;
-  width: 0;
-  height: 0;
-  border-top: 9px solid transparent;
-  border-bottom: 9px solid transparent;
-  border-left: 11px solid #e6e7eb;
+  left: 6px;
+  top: 4px;
+  width: 11px;
+  height: 19px;
+  background: #e6e7eb;
+  clip-path: polygon(100% 0, 100% 100%, 0 72%, 0 28%);
 }
 
 .speaker-wave {
-  left: 54%;
-  top: 31%;
-  width: 20%;
-  height: 38%;
-  border: 3px solid #e6e7eb;
-  border-left: 0;
-  border-top-color: transparent;
-  border-bottom-color: transparent;
+  left: 15px;
+  top: 5px;
+  width: 9px;
+  height: 17px;
+  border-right: 3px solid #e6e7eb;
   border-radius: 0 50% 50% 0;
 }
 
 .speaker-slash {
   display: none !important;
-  left: 57%;
-  top: 24%;
+  left: 17px;
+  top: 4px;
   width: 3px;
-  height: 52%;
+  height: 19px;
   border-radius: 2px;
   background: #f06b75;
   transform: rotate(-42deg);
@@ -367,8 +367,8 @@ button {
 .sound-button.muted .speaker-slash { display: block !important; }
 
 .play-triangle {
-  left: 39%;
-  top: 30%;
+  left: 7px;
+  top: 3px;
   width: 0;
   height: 0;
   border-top: 10px solid transparent;
@@ -378,15 +378,15 @@ button {
 
 .pause-bar {
   display: none !important;
-  top: 30%;
+  top: 4px;
   width: 7px;
-  height: 40%;
+  height: 18px;
   border-radius: 1px;
   background: #e6e7eb;
 }
 
-.pause-left { left: 32%; }
-.pause-right { right: 32%; }
+.pause-left { left: 5px; }
+.pause-right { right: 5px; }
 .play-button.is-playing .play-triangle { display: none; }
 .play-button.is-playing .pause-bar { display: block !important; }
 
