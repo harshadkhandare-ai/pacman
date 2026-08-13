@@ -64,6 +64,7 @@
   const TURN_WINDOW = 6;
   const HOUSE_EXIT = { col: 10, row: 7 };
   const HOUSE_CENTER = { col: 10, row: 9 };
+  const LEVEL_ZOOMS = [1.42, 1.34, 1.26, 1.18, 1.1, 1.04, 1];
 
   let board = [];
   let pelletsLeft = 0;
@@ -92,6 +93,9 @@
   let animationId = null;
   let touchStart = null;
   let currentRunId = "";
+  let cameraX = 0;
+  let cameraY = 0;
+  let cameraReady = false;
 
   const MUSIC_STEP_SECONDS = 0.125;
   const MUSIC_MELODY = [
@@ -167,6 +171,37 @@
     return { x: col * TILE + TILE / 2, y: HUD + row * TILE + TILE / 2 };
   }
 
+  function currentZoom() {
+    return LEVEL_ZOOMS[Math.min(level - 1, LEVEL_ZOOMS.length - 1)];
+  }
+
+  function resetCamera() {
+    cameraReady = false;
+  }
+
+  function updateCamera() {
+    const zoom = currentZoom();
+    const worldHeight = ROWS * TILE;
+    const viewWidth = WIDTH / zoom;
+    const viewHeight = worldHeight / zoom;
+    const maxX = Math.max(0, WIDTH - viewWidth);
+    const maxY = Math.max(0, worldHeight - viewHeight);
+    const targetX = Math.max(0, Math.min(maxX, player.x - viewWidth / 2));
+    const targetY = Math.max(0, Math.min(maxY, player.y - HUD - viewHeight / 2));
+
+    if (!cameraReady) {
+      cameraX = targetX;
+      cameraY = targetY;
+      cameraReady = true;
+      return { zoom, x: cameraX, y: cameraY };
+    }
+
+    const easing = state === "playing" ? 0.12 : 0.2;
+    cameraX += (targetX - cameraX) * easing;
+    cameraY += (targetY - cameraY) * easing;
+    return { zoom, x: cameraX, y: cameraY };
+  }
+
   function makeBoard() {
     pelletsLeft = 0;
     board = RAW_MAP.map((row) => row.split("").map((cell) => {
@@ -216,6 +251,7 @@
     });
     frightenedUntil = 0;
     ghostChain = 0;
+    resetCamera();
   }
 
   function startGame(fresh = false) {
@@ -825,10 +861,21 @@
 
   function draw() {
     drawHud();
+
+    const camera = updateCamera();
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, HUD, WIDTH, ROWS * TILE);
+    ctx.clip();
+    ctx.translate(0, HUD);
+    ctx.scale(camera.zoom, camera.zoom);
+    ctx.translate(-camera.x, -HUD - camera.y);
     drawMaze();
     drawFruit();
     ghosts.forEach(drawGhost);
     drawPlayer();
+    ctx.restore();
+
     drawStatus();
   }
 
