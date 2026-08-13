@@ -12,6 +12,7 @@
       <section class="landing-page" id="landingPage" aria-label="Funda Champ start page">
         <div class="landing-grid" aria-hidden="true"></div>
         <div class="landing-content">
+          <img class="landing-logo" src="assets/funda-logo.png" alt="Funda" />
           <p class="landing-kicker">FUNDA ARCADE PRESENTS</p>
 
           <div class="landing-chase" aria-hidden="true">
@@ -29,6 +30,7 @@
             <span>START GAME</span>
             <i aria-hidden="true"></i>
           </button>
+          <button class="landing-howto" id="howToPlayButton" type="button">HOW TO PLAY</button>
 
           <div class="landing-stats">
             <div>
@@ -45,6 +47,69 @@
         <p class="landing-footer">FUNDA CHAMP · ORIGINAL ARCADE EDITION</p>
       </section>
 
+      <section class="rules-page hidden" id="rulesPage" aria-label="How to play Funda Champ">
+        <div class="landing-grid" aria-hidden="true"></div>
+        <button class="rules-back" id="rulesBackButton" type="button">← BACK</button>
+
+        <div class="rules-content">
+          <header class="rules-heading">
+            <p class="landing-kicker rules-kicker">HOW TO PLAY</p>
+            <h2 class="rules-title">THREE RULES.<br /><span>ONE CHAMP.</span></h2>
+          </header>
+
+          <div class="rules-scenes">
+            <article class="rule-scene scene-points">
+              <div class="rule-stage" aria-hidden="true">
+                <span class="scene-pacman-wrap points-pacman"><span class="landing-pacman scene-pacman"></span></span>
+                <span class="scene-dots">
+                  <i></i><i></i><i></i><i></i><i></i>
+                </span>
+              </div>
+              <div class="rule-caption">
+                <span>01</span>
+                <div><strong>SAARE DOTS KHAO</strong></div>
+              </div>
+            </article>
+
+            <article class="rule-scene scene-chase">
+              <div class="rule-stage" aria-hidden="true">
+                <span class="chase-pack">
+                  <span class="landing-ghost ghost-red"><b></b><b></b></span>
+                  <span class="landing-ghost ghost-pink"><b></b><b></b></span>
+                  <span class="landing-ghost ghost-blue"><b></b><b></b></span>
+                  <i></i><i></i><i></i>
+                  <span class="scene-pacman-wrap"><span class="landing-pacman scene-pacman"></span></span>
+                </span>
+              </div>
+              <div class="rule-caption">
+                <span>02</span>
+                <div><strong>GHOSTS SE BACHO</strong></div>
+              </div>
+            </article>
+
+            <article class="rule-scene scene-power">
+              <div class="rule-stage" aria-hidden="true">
+                <span class="power-orb"></span>
+                <span class="scene-pacman-wrap power-pacman"><span class="landing-pacman scene-pacman"></span></span>
+                <span class="scene-ghost-wrap power-ghost ghost-one"><span class="landing-ghost power-color-one"><b></b><b></b></span></span>
+                <span class="scene-ghost-wrap power-ghost ghost-two"><span class="landing-ghost power-color-two"><b></b><b></b></span></span>
+              </div>
+              <div class="rule-caption">
+                <span>03</span>
+                <div><strong>POWER DOT KHAO, PHIR<br />BLUE GHOSTS KO KHAO</strong></div>
+              </div>
+            </article>
+          </div>
+
+          <button class="landing-start rules-start" id="rulesStartButton" type="button">
+            <span id="rulesStartLabel" aria-live="polite">LET'S PLAY</span>
+            <i aria-hidden="true"></i>
+          </button>
+        </div>
+
+        <p class="landing-footer">LEARN THE MAZE · BEAT THE GHOSTS</p>
+      </section>
+
       <section class="console" id="console">
         <section class="display-panel" aria-label="Game screen">
           <div class="screen-wrap" id="screenWrap">
@@ -53,7 +118,10 @@
             <div class="screen-overlay compact hidden" id="pauseOverlay">
               <p class="eyebrow">GAME PAUSED</p>
               <h2>TAKE FIVE</h2>
-              <button class="start-button" id="resumeButton" type="button">RESUME</button>
+              <div class="pause-actions">
+                <button class="start-button" id="resumeButton" type="button">RESUME</button>
+                <button class="start-button pause-exit-button" id="exitGameButton" type="button">EXIT GAME</button>
+              </div>
             </div>
 
             <div class="screen-overlay end-screen hidden" id="endOverlay">
@@ -85,15 +153,15 @@
 
           <div class="secondary-controls" aria-label="Game options">
             <div class="mini-control">
-              <button class="mini-button sound-button" id="soundButton" type="button" aria-label="Mute sound">
-                <span class="speaker-icon" aria-hidden="true">
-                  <i class="speaker-box"></i>
-                  <i class="speaker-cone"></i>
-                  <i class="speaker-wave"></i>
-                  <i class="speaker-slash"></i>
-                </span>
+              <button class="mini-button sound-button" id="soundButton" type="button" aria-label="Mute music">
+                <svg class="music-icon" viewBox="0 0 32 32" aria-hidden="true">
+                  <path class="music-stems" d="M11 8v13M11 10l12-3v11" />
+                  <ellipse class="music-head" cx="7.5" cy="22" rx="4.5" ry="3.5" />
+                  <ellipse class="music-head" cx="19.5" cy="19" rx="4.5" ry="3.5" />
+                  <path class="music-slash" d="M5 5l22 22" />
+                </svg>
               </button>
-              <span>SOUND</span>
+              <span>MUSIC</span>
             </div>
             <div class="mini-control">
               <button class="mini-button play-button" id="pauseButton" type="button" aria-label="Start game">

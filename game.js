@@ -5,9 +5,15 @@
   const ctx = canvas.getContext("2d");
   const landingPage = document.getElementById("landingPage");
   const landingBestScore = document.getElementById("landingBestScore");
+  const rulesPage = document.getElementById("rulesPage");
   const pauseOverlay = document.getElementById("pauseOverlay");
   const startButton = document.getElementById("startButton");
+  const howToPlayButton = document.getElementById("howToPlayButton");
+  const rulesStartButton = document.getElementById("rulesStartButton");
+  const rulesStartLabel = document.getElementById("rulesStartLabel");
+  const rulesBackButton = document.getElementById("rulesBackButton");
   const resumeButton = document.getElementById("resumeButton");
+  const exitGameButton = document.getElementById("exitGameButton");
   const endOverlay = document.getElementById("endOverlay");
   const endStartButton = document.getElementById("endStartButton");
   const finalScore = document.getElementById("finalScore");
@@ -151,6 +157,11 @@
   let touchStart = null;
   let activeDirectionButton = null;
   let directionFeedbackTimer = 0;
+  let introTransitionTimer = 0;
+  let rulesCountdownTimer = 0;
+  let rulesAutoStart = false;
+  let preparationMusicActive = false;
+  let confetti = [];
   let currentRunId = "";
   let activeMazeBounds = MAZE_BOUNDS[0];
 
@@ -364,7 +375,16 @@
 
   function startGame(fresh = false) {
     ensureAudio();
+    preparationMusicActive = false;
+    const completedCountdown = rulesAutoStart;
+    cancelRulesCountdown(!completedCountdown);
+    if (completedCountdown) {
+      rulesStartButton.style.setProperty("--countdown-progress", "100%");
+      rulesStartLabel.textContent = "STARTING GAME";
+    }
+    window.clearTimeout(introTransitionTimer);
     if (fresh || state === "title" || state === "gameover") {
+      confetti = [];
       score = 0;
       lives = 3;
       level = 1;
@@ -380,11 +400,94 @@
     pauseButton.setAttribute("aria-label", "Pause game");
     pauseButton.nextElementSibling.textContent = "PAUSE";
     landingPage.classList.add("is-leaving");
-    window.setTimeout(() => landingPage.classList.add("hidden"), 360);
+    rulesPage.classList.add("is-leaving");
+    introTransitionTimer = window.setTimeout(() => {
+      landingPage.classList.add("hidden");
+      rulesPage.classList.add("hidden");
+      landingPage.classList.remove("is-leaving");
+      rulesPage.classList.remove("is-leaving", "is-entering");
+      resetRulesCountdownButton();
+    }, 360);
     pauseOverlay.classList.add("hidden");
     endOverlay.classList.add("hidden");
     blip(440, 0.055, "square", 0.035);
     blip(660, 0.08, "square", 0.025, 0.07);
+  }
+
+  function resetRulesCountdownButton() {
+    rulesStartButton.disabled = false;
+    rulesStartButton.removeAttribute("aria-label");
+    rulesStartButton.classList.remove("is-counting-down");
+    rulesStartButton.style.removeProperty("--countdown-progress");
+    rulesStartLabel.textContent = "LET'S PLAY";
+  }
+
+  function cancelRulesCountdown(resetButton = true) {
+    if (rulesCountdownTimer) window.clearInterval(rulesCountdownTimer);
+    rulesCountdownTimer = 0;
+    rulesAutoStart = false;
+    if (resetButton) resetRulesCountdownButton();
+  }
+
+  function beginRulesCountdown() {
+    cancelRulesCountdown();
+    rulesAutoStart = true;
+    rulesStartButton.disabled = false;
+    rulesStartButton.setAttribute("aria-label", "Start game now");
+    rulesStartButton.classList.add("is-counting-down");
+    const deadline = Date.now() + 5000;
+
+    const updateCountdown = () => {
+      const remainingMs = Math.max(0, deadline - Date.now());
+      const remaining = Math.ceil(remainingMs / 1000);
+      const progress = Math.min(100, ((5000 - remainingMs) / 5000) * 100);
+      rulesStartButton.style.setProperty("--countdown-progress", `${progress}%`);
+      if (remaining > 0) {
+        rulesStartLabel.textContent = `STARTING GAME IN ${remaining}`;
+        return;
+      }
+
+      window.clearInterval(rulesCountdownTimer);
+      rulesCountdownTimer = 0;
+      startGame(true);
+    };
+
+    updateCountdown();
+    rulesCountdownTimer = window.setInterval(updateCountdown, 50);
+  }
+
+  function showRules(autoStart = false) {
+    ensureAudio();
+    preparationMusicActive = autoStart;
+    if (autoStart) resetMusicClock(0.04);
+    cancelRulesCountdown();
+    window.clearTimeout(introTransitionTimer);
+    rulesPage.classList.remove("hidden", "is-leaving");
+    rulesPage.classList.add("is-entering");
+    landingPage.classList.add("is-leaving");
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => rulesPage.classList.remove("is-entering"));
+    });
+
+    introTransitionTimer = window.setTimeout(() => {
+      landingPage.classList.add("hidden");
+      landingPage.classList.remove("is-leaving");
+    }, 360);
+
+    if (autoStart) beginRulesCountdown();
+  }
+
+  function showLanding() {
+    preparationMusicActive = false;
+    cancelRulesCountdown();
+    window.clearTimeout(introTransitionTimer);
+    landingPage.classList.remove("hidden", "is-leaving");
+    rulesPage.classList.add("is-leaving");
+    introTransitionTimer = window.setTimeout(() => {
+      rulesPage.classList.add("hidden");
+      rulesPage.classList.remove("is-leaving", "is-entering");
+    }, 360);
   }
 
   function togglePause() {
@@ -406,6 +509,18 @@
       pauseButton.nextElementSibling.textContent = "PAUSE";
       pauseOverlay.classList.add("hidden");
     }
+  }
+
+  function exitGame() {
+    state = "title";
+    preparationMusicActive = false;
+    confetti = [];
+    pauseOverlay.classList.add("hidden");
+    endOverlay.classList.add("hidden");
+    pauseButton.classList.remove("is-playing");
+    pauseButton.setAttribute("aria-label", "Start game");
+    pauseButton.nextElementSibling.textContent = "PLAY";
+    showLanding();
   }
 
   function ensureAudio() {
@@ -451,7 +566,7 @@
   }
 
   function updateMusic() {
-    if (!soundOn || state !== "playing") return;
+    if (!soundOn || (state !== "playing" && !preparationMusicActive)) return;
     const activeAudio = ensureAudio();
     if (!activeAudio || !musicGain) return;
     if (nextMusicNoteAt < activeAudio.currentTime - MUSIC_STEP_SECONDS) {
@@ -734,6 +849,7 @@
 
   function nextLevel() {
     state = "levelclear";
+    launchConfetti();
     blip(523.25, 0.09, "square", 0.035);
     blip(659.25, 0.09, "square", 0.032, 0.1);
     blip(783.99, 0.09, "square", 0.032, 0.2);
@@ -741,11 +857,61 @@
     window.setTimeout(() => {
       if (state !== "levelclear") return;
       level += 1;
+      confetti = [];
       makeBoard();
       resetActors();
       state = "playing";
       resetMusicClock(0.12);
     }, 1100);
+  }
+
+  function launchConfetti() {
+    const colors = ["#ffe000", "#59f2ca", "#ff5775", "#ff85d6", "#42e6f5", "#f7f8ff"];
+    confetti = Array.from({ length: 96 }, (_, index) => {
+      const fromLeft = index % 2 === 0;
+      return {
+        x: fromLeft ? 18 : WIDTH - 18,
+        y: HEIGHT - 18 - Math.random() * 24,
+        vx: (fromLeft ? 1 : -1) * (85 + Math.random() * 175),
+        vy: -(210 + Math.random() * 230),
+        gravity: 330 + Math.random() * 130,
+        size: 4 + Math.random() * 7,
+        rotation: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 12,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        life: 1.05 + Math.random() * 0.45
+      };
+    });
+  }
+
+  function updateConfetti(dt) {
+    if (!confetti.length) return;
+    confetti.forEach((piece) => {
+      piece.life -= dt;
+      piece.vy += piece.gravity * dt;
+      piece.x += piece.vx * dt;
+      piece.y += piece.vy * dt;
+      piece.rotation += piece.spin * dt;
+    });
+    confetti = confetti.filter((piece) => piece.life > 0);
+  }
+
+  function drawConfetti() {
+    if (!confetti.length) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, HUD, WIDTH, ROWS * TILE);
+    ctx.clip();
+    confetti.forEach((piece) => {
+      ctx.save();
+      ctx.translate(piece.x, piece.y);
+      ctx.rotate(piece.rotation);
+      ctx.globalAlpha = Math.min(1, piece.life * 2.5);
+      ctx.fillStyle = piece.color;
+      ctx.fillRect(-piece.size / 2, -piece.size / 4, piece.size, piece.size / 2);
+      ctx.restore();
+    });
+    ctx.restore();
   }
 
   function checkCollisions() {
@@ -977,7 +1143,7 @@
     if (state === "levelclear") {
       ctx.fillStyle = "rgba(2,4,12,.76)";
       ctx.fillRect(0, HUD + HEIGHT * .31, WIDTH, 58);
-      drawPixelText("MAZE CLEAR!", WIDTH / 2, HUD + HEIGHT * .33, 27, "center", "#ffe000");
+      drawPixelText("LEVEL COMPLETE!", WIDTH / 2, HUD + HEIGHT * .33, 25, "center", "#ffe000");
     } else if (state === "dying") {
       drawPixelText("READY!", WIDTH / 2, HUD + 13 * TILE, 20, "center", "#ffdf31");
     }
@@ -1001,6 +1167,7 @@
     ghosts.forEach(drawGhost);
     drawPlayer();
     ctx.restore();
+    drawConfetti();
     drawStatus();
   }
 
@@ -1008,6 +1175,7 @@
     const dt = Math.min((timestamp - lastTime) / 1000 || 0, 0.033);
     lastTime = timestamp;
     update(dt);
+    updateConfetti(dt);
     updateMusic();
     draw();
     animationId = requestAnimationFrame(loop);
@@ -1015,6 +1183,11 @@
 
   function setDirection(direction) {
     ensureAudio();
+    if (!landingPage.classList.contains("hidden")) {
+      showRules(true);
+      return;
+    }
+    if (!rulesPage.classList.contains("hidden")) return;
     if (state === "title" || state === "gameover") startGame(true);
     if (state !== "playing") return;
     player.wanted = direction;
@@ -1072,7 +1245,9 @@
       setDirection(keyMap[event.key]);
     } else if (event.key === " " || event.key === "Enter") {
       event.preventDefault();
-      togglePause();
+      if (!landingPage.classList.contains("hidden")) showRules(true);
+      else if (!rulesPage.classList.contains("hidden")) startGame(true);
+      else togglePause();
     }
   });
 
@@ -1090,17 +1265,19 @@
     setDirection(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"));
   });
 
-  startButton.addEventListener("click", () => {
-    startGame(true);
-  });
+  startButton.addEventListener("click", () => showRules(true));
+  howToPlayButton.addEventListener("click", () => showRules(false));
+  rulesStartButton.addEventListener("click", () => startGame(true));
+  rulesBackButton.addEventListener("click", showLanding);
   endStartButton.addEventListener("click", () => startGame(true));
   resumeButton.addEventListener("click", togglePause);
+  exitGameButton.addEventListener("click", exitGame);
   pauseButton.addEventListener("click", togglePause);
   soundButton.addEventListener("click", () => {
     soundOn = !soundOn;
     soundButton.classList.toggle("active", !soundOn);
     soundButton.classList.toggle("muted", !soundOn);
-    soundButton.setAttribute("aria-label", soundOn ? "Mute sound" : "Turn sound on");
+    soundButton.setAttribute("aria-label", soundOn ? "Mute music" : "Turn music on");
     if (soundOn) {
       ensureAudio();
       resetMusicClock(0.16);
