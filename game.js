@@ -25,31 +25,37 @@
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
 
-  const RAW_MAP = [
-    "#####################",
-    "#.........#.........#",
-    "#o###...........###o#",
-    "#...................#",
-    "#.....###...###.....#",
-    "#...................#",
-    "#####.#.......#.#####",
-    "    #.#.......#.#    ",
-    "#####.#.##=##.#.#####",
-    "    ... #   # ...    ",
-    "#####.# #   # #.#####",
-    "    #.# ##### #.#    ",
-    "#####.#       #.#####",
-    "    ... ##### ...    ",
-    "#####.# ##### #.#####",
-    "#...................#",
-    "#.....###...###.....#",
-    "#o.................o#",
-    "#...#.....#.....#...#",
-    "#...#...........#...#",
-    "#...#####...#####...#",
-    "#...................#",
-    "#.........#.........#",
-    "#####################"
+  const MAZE_BOUNDS = [
+    { left: 4, right: 16, top: 4, bottom: 20 },
+    { left: 3, right: 17, top: 3, bottom: 21 },
+    { left: 2, right: 18, top: 2, bottom: 22 },
+    { left: 1, right: 19, top: 1, bottom: 22 },
+    { left: 0, right: 20, top: 0, bottom: 23 }
+  ];
+
+  const WALL_SEGMENTS = [
+    { stage: 0, row: 6, from: 6, to: 8 },
+    { stage: 0, row: 6, from: 12, to: 14 },
+    { stage: 0, row: 14, from: 5, to: 7 },
+    { stage: 0, row: 14, from: 13, to: 15 },
+    { stage: 0, col: 6, from: 16, to: 18 },
+    { stage: 0, col: 14, from: 16, to: 18 },
+    { stage: 1, row: 4, from: 5, to: 7 },
+    { stage: 1, row: 4, from: 13, to: 15 },
+    { stage: 1, col: 4, from: 7, to: 10 },
+    { stage: 1, col: 16, from: 7, to: 10 },
+    { stage: 2, row: 18, from: 3, to: 7 },
+    { stage: 2, row: 18, from: 13, to: 17 },
+    { stage: 2, col: 3, from: 12, to: 15 },
+    { stage: 2, col: 17, from: 12, to: 15 },
+    { stage: 3, row: 2, from: 4, to: 8 },
+    { stage: 3, row: 2, from: 12, to: 16 },
+    { stage: 3, col: 2, from: 5, to: 8 },
+    { stage: 3, col: 18, from: 5, to: 8 },
+    { stage: 4, row: 21, from: 4, to: 8 },
+    { stage: 4, row: 21, from: 12, to: 16 },
+    { stage: 4, col: 1, from: 10, to: 14 },
+    { stage: 4, col: 19, from: 10, to: 14 }
   ];
 
   const DIRS = {
@@ -64,7 +70,6 @@
   const TURN_WINDOW = 6;
   const HOUSE_EXIT = { col: 10, row: 7 };
   const HOUSE_CENTER = { col: 10, row: 9 };
-  const LEVEL_ZOOMS = [1.42, 1.34, 1.26, 1.18, 1.1, 1.04, 1];
 
   let board = [];
   let pelletsLeft = 0;
@@ -93,9 +98,7 @@
   let animationId = null;
   let touchStart = null;
   let currentRunId = "";
-  let cameraX = 0;
-  let cameraY = 0;
-  let cameraReady = false;
+  let activeMazeBounds = MAZE_BOUNDS[0];
 
   const MUSIC_STEP_SECONDS = 0.125;
   const MUSIC_MELODY = [
@@ -171,40 +174,61 @@
     return { x: col * TILE + TILE / 2, y: HUD + row * TILE + TILE / 2 };
   }
 
-  function currentZoom() {
-    return LEVEL_ZOOMS[Math.min(level - 1, LEVEL_ZOOMS.length - 1)];
-  }
+  function buildLevelMaze() {
+    const stage = Math.min(level - 1, MAZE_BOUNDS.length - 1);
+    activeMazeBounds = MAZE_BOUNDS[stage];
+    const { left, right, top, bottom } = activeMazeBounds;
+    const grid = Array.from({ length: ROWS }, () => Array(COLS).fill(" "));
 
-  function resetCamera() {
-    cameraReady = false;
-  }
-
-  function updateCamera() {
-    const zoom = currentZoom();
-    const worldHeight = ROWS * TILE;
-    const viewWidth = WIDTH / zoom;
-    const viewHeight = worldHeight / zoom;
-    const maxX = Math.max(0, WIDTH - viewWidth);
-    const maxY = Math.max(0, worldHeight - viewHeight);
-    const targetX = Math.max(0, Math.min(maxX, player.x - viewWidth / 2));
-    const targetY = Math.max(0, Math.min(maxY, player.y - HUD - viewHeight / 2));
-
-    if (!cameraReady) {
-      cameraX = targetX;
-      cameraY = targetY;
-      cameraReady = true;
-      return { zoom, x: cameraX, y: cameraY };
+    for (let row = top; row <= bottom; row += 1) {
+      for (let col = left; col <= right; col += 1) {
+        const boundary = row === top || row === bottom || col === left || col === right;
+        grid[row][col] = boundary ? "#" : ".";
+      }
     }
 
-    const easing = state === "playing" ? 0.12 : 0.2;
-    cameraX += (targetX - cameraX) * easing;
-    cameraY += (targetY - cameraY) * easing;
-    return { zoom, x: cameraX, y: cameraY };
+    WALL_SEGMENTS.forEach((segment) => {
+      if (segment.stage > stage) return;
+      if (segment.row !== undefined) {
+        for (let col = segment.from; col <= segment.to; col += 1) {
+          if (segment.row > top && segment.row < bottom && col > left && col < right) {
+            grid[segment.row][col] = "#";
+          }
+        }
+      } else {
+        for (let row = segment.from; row <= segment.to; row += 1) {
+          if (row > top && row < bottom && segment.col > left && segment.col < right) {
+            grid[row][segment.col] = "#";
+          }
+        }
+      }
+    });
+
+    // A compact central ghost house shared by every maze size.
+    for (let col = 8; col <= 12; col += 1) grid[8][col] = "#";
+    grid[8][10] = "=";
+    for (let row = 9; row <= 10; row += 1) {
+      grid[row][8] = "#";
+      grid[row][12] = "#";
+      for (let col = 9; col <= 11; col += 1) grid[row][col] = " ";
+    }
+    for (let col = 8; col <= 12; col += 1) grid[11][col] = "#";
+
+    const powerPellets = [
+      [left + 1, top + 1],
+      [right - 1, top + 1],
+      [left + 1, bottom - 1],
+      [right - 1, bottom - 1]
+    ];
+    powerPellets.forEach(([col, row]) => {
+      if (grid[row][col] === ".") grid[row][col] = "o";
+    });
+    return grid;
   }
 
   function makeBoard() {
     pelletsLeft = 0;
-    board = RAW_MAP.map((row) => row.split("").map((cell) => {
+    board = buildLevelMaze().map((row) => row.map((cell) => {
       if (cell === "." || cell === "o") pelletsLeft += 1;
       return cell;
     }));
@@ -251,7 +275,6 @@
     });
     frightenedUntil = 0;
     ghostChain = 0;
-    resetCamera();
   }
 
   function startGame(fresh = false) {
@@ -538,7 +561,13 @@
 
     const scatter = Math.floor(phaseTime / 7) % 4 === 0 && !ghost.eaten && !ghost.inHouse;
     if (scatter) {
-      const corners = [{ col: COLS - 2, row: 1 }, { col: 1, row: 1 }, { col: COLS - 2, row: ROWS - 2 }, { col: 1, row: ROWS - 2 }];
+      const { left, right, top, bottom } = activeMazeBounds;
+      const corners = [
+        { col: right - 1, row: top + 1 },
+        { col: left + 1, row: top + 1 },
+        { col: right - 1, row: bottom - 1 },
+        { col: left + 1, row: bottom - 1 }
+      ];
       target = corners[ghost.index];
     }
 
@@ -861,21 +890,10 @@
 
   function draw() {
     drawHud();
-
-    const camera = updateCamera();
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(0, HUD, WIDTH, ROWS * TILE);
-    ctx.clip();
-    ctx.translate(0, HUD);
-    ctx.scale(camera.zoom, camera.zoom);
-    ctx.translate(-camera.x, -HUD - camera.y);
     drawMaze();
     drawFruit();
     ghosts.forEach(drawGhost);
     drawPlayer();
-    ctx.restore();
-
     drawStatus();
   }
 
