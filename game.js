@@ -26,10 +26,10 @@
   canvas.height = HEIGHT;
 
   const MAZE_BOUNDS = [
-    { left: 4, right: 16, top: 4, bottom: 20 },
-    { left: 3, right: 17, top: 3, bottom: 21 },
-    { left: 2, right: 18, top: 2, bottom: 22 },
-    { left: 1, right: 19, top: 1, bottom: 22 },
+    { left: 3, right: 17, top: 4, bottom: 20 },
+    { left: 2, right: 18, top: 3, bottom: 21 },
+    { left: 1, right: 19, top: 2, bottom: 22 },
+    { left: 0, right: 20, top: 1, bottom: 23 },
     { left: 0, right: 20, top: 0, bottom: 23 }
   ];
 
@@ -53,9 +53,7 @@
     { stage: 3, col: 2, from: 5, to: 8 },
     { stage: 3, col: 18, from: 5, to: 8 },
     { stage: 4, row: 21, from: 4, to: 8 },
-    { stage: 4, row: 21, from: 12, to: 16 },
-    { stage: 4, col: 1, from: 10, to: 14 },
-    { stage: 4, col: 19, from: 10, to: 14 }
+    { stage: 4, row: 21, from: 12, to: 16 }
   ];
 
   const DIRS = {
@@ -172,6 +170,21 @@
 
   function tileCenter(col, row) {
     return { x: col * TILE + TILE / 2, y: HUD + row * TILE + TILE / 2 };
+  }
+
+  function mazeDisplayTransform() {
+    const { left, right, top, bottom } = activeMazeBounds;
+    const mazeWidth = (right - left + 1) * TILE;
+    const mazeHeight = (bottom - top + 1) * TILE;
+    const playHeight = ROWS * TILE;
+    const scale = Math.min(WIDTH / mazeWidth, playHeight / mazeHeight);
+    return {
+      scale,
+      x: (WIDTH - mazeWidth * scale) / 2,
+      y: HUD + (playHeight - mazeHeight * scale) / 2,
+      sourceX: left * TILE,
+      sourceY: HUD + top * TILE
+    };
   }
 
   function buildLevelMaze() {
@@ -890,10 +903,22 @@
 
   function draw() {
     drawHud();
+    ctx.fillStyle = "#050711";
+    ctx.fillRect(0, HUD, WIDTH, ROWS * TILE);
+
+    const transform = mazeDisplayTransform();
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, HUD, WIDTH, ROWS * TILE);
+    ctx.clip();
+    ctx.translate(transform.x, transform.y);
+    ctx.scale(transform.scale, transform.scale);
+    ctx.translate(-transform.sourceX, -transform.sourceY);
     drawMaze();
     drawFruit();
     ghosts.forEach(drawGhost);
     drawPlayer();
+    ctx.restore();
     drawStatus();
   }
 
