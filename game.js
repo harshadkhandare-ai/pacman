@@ -13,6 +13,7 @@
   const rulesStartLabel = document.getElementById("rulesStartLabel");
   const rulesBackButton = document.getElementById("rulesBackButton");
   const resumeButton = document.getElementById("resumeButton");
+  const pauseHowToPlayButton = document.getElementById("pauseHowToPlayButton");
   const exitGameButton = document.getElementById("exitGameButton");
   const endOverlay = document.getElementById("endOverlay");
   const endStartButton = document.getElementById("endStartButton");
@@ -158,9 +159,11 @@
   let activeDirectionButton = null;
   let directionFeedbackTimer = 0;
   let introTransitionTimer = 0;
+  let rulesReadyTimer = 0;
   let rulesCountdownTimer = 0;
   let rulesAutoStart = false;
   let preparationMusicActive = false;
+  let rulesOrigin = "landing";
   let confetti = [];
   let currentRunId = "";
   let activeMazeBounds = MAZE_BOUNDS[0];
@@ -423,7 +426,9 @@
   }
 
   function cancelRulesCountdown(resetButton = true) {
+    if (rulesReadyTimer) window.clearTimeout(rulesReadyTimer);
     if (rulesCountdownTimer) window.clearInterval(rulesCountdownTimer);
+    rulesReadyTimer = 0;
     rulesCountdownTimer = 0;
     rulesAutoStart = false;
     if (resetButton) resetRulesCountdownButton();
@@ -435,32 +440,46 @@
     rulesStartButton.disabled = false;
     rulesStartButton.setAttribute("aria-label", "Start game now");
     rulesStartButton.classList.add("is-counting-down");
-    const deadline = Date.now() + 5000;
+    rulesStartButton.style.setProperty("--countdown-progress", "0%");
+    rulesStartLabel.textContent = "GET READY...";
 
-    const updateCountdown = () => {
-      const remainingMs = Math.max(0, deadline - Date.now());
-      const remaining = Math.ceil(remainingMs / 1000);
-      const progress = Math.min(100, ((5000 - remainingMs) / 5000) * 100);
-      rulesStartButton.style.setProperty("--countdown-progress", `${progress}%`);
-      if (remaining > 0) {
-        rulesStartLabel.textContent = `STARTING GAME IN ${remaining}`;
-        return;
-      }
+    // Keep the preparation state on screen for a complete five seconds.
+    // The visible five-second countdown is created only after this timeout.
+    rulesReadyTimer = window.setTimeout(() => {
+      rulesReadyTimer = 0;
+      const deadline = Date.now() + 5000;
 
-      window.clearInterval(rulesCountdownTimer);
-      rulesCountdownTimer = 0;
-      startGame(true);
-    };
+      const updateCountdown = () => {
+        const remainingMs = Math.max(0, deadline - Date.now());
+        const remaining = Math.ceil(remainingMs / 1000);
+        const progress = Math.min(100, ((5000 - remainingMs) / 5000) * 100);
+        rulesStartButton.style.setProperty("--countdown-progress", `${progress}%`);
+        if (remaining > 0) {
+          rulesStartLabel.textContent = `STARTING GAME IN ${remaining}`;
+          return;
+        }
 
-    updateCountdown();
-    rulesCountdownTimer = window.setInterval(updateCountdown, 50);
+        window.clearInterval(rulesCountdownTimer);
+        rulesCountdownTimer = 0;
+        startGame(true);
+      };
+
+      updateCountdown();
+      rulesCountdownTimer = window.setInterval(updateCountdown, 50);
+    }, 5000);
   }
 
-  function showRules(autoStart = false) {
+  function showRules(autoStart = false, origin = "landing") {
     ensureAudio();
-    preparationMusicActive = autoStart;
-    if (autoStart) resetMusicClock(0.04);
     cancelRulesCountdown();
+    rulesOrigin = origin;
+    preparationMusicActive = autoStart;
+    rulesBackButton.textContent = origin === "pause" ? "← PAUSE MENU" : "← BACK";
+    if (origin === "pause") {
+      rulesStartLabel.textContent = "RESUME GAME";
+      rulesStartButton.setAttribute("aria-label", "Resume game");
+    }
+    if (autoStart) resetMusicClock(0.04);
     window.clearTimeout(introTransitionTimer);
     rulesPage.classList.remove("hidden", "is-leaving");
     rulesPage.classList.add("is-entering");
@@ -479,6 +498,7 @@
   }
 
   function showLanding() {
+    rulesOrigin = "landing";
     preparationMusicActive = false;
     cancelRulesCountdown();
     window.clearTimeout(introTransitionTimer);
@@ -487,6 +507,35 @@
     introTransitionTimer = window.setTimeout(() => {
       rulesPage.classList.add("hidden");
       rulesPage.classList.remove("is-leaving", "is-entering");
+    }, 360);
+  }
+
+  function returnToPauseMenu() {
+    cancelRulesCountdown();
+    rulesPage.classList.add("is-leaving");
+    introTransitionTimer = window.setTimeout(() => {
+      rulesPage.classList.add("hidden");
+      rulesPage.classList.remove("is-leaving", "is-entering");
+      resetRulesCountdownButton();
+      rulesBackButton.textContent = "← BACK";
+      rulesOrigin = "landing";
+    }, 360);
+  }
+
+  function resumeFromRules() {
+    rulesPage.classList.add("is-leaving");
+    state = "playing";
+    resetMusicClock(0.08);
+    pauseOverlay.classList.add("hidden");
+    pauseButton.classList.add("is-playing");
+    pauseButton.setAttribute("aria-label", "Pause game");
+    pauseButton.nextElementSibling.textContent = "PAUSE";
+    introTransitionTimer = window.setTimeout(() => {
+      rulesPage.classList.add("hidden");
+      rulesPage.classList.remove("is-leaving", "is-entering");
+      resetRulesCountdownButton();
+      rulesBackButton.textContent = "← BACK";
+      rulesOrigin = "landing";
     }, 360);
   }
 
@@ -1246,7 +1295,10 @@
     } else if (event.key === " " || event.key === "Enter") {
       event.preventDefault();
       if (!landingPage.classList.contains("hidden")) showRules(true);
-      else if (!rulesPage.classList.contains("hidden")) startGame(true);
+      else if (!rulesPage.classList.contains("hidden")) {
+        if (rulesOrigin === "pause") resumeFromRules();
+        else startGame(true);
+      }
       else togglePause();
     }
   });
@@ -1267,10 +1319,17 @@
 
   startButton.addEventListener("click", () => showRules(true));
   howToPlayButton.addEventListener("click", () => showRules(false));
-  rulesStartButton.addEventListener("click", () => startGame(true));
-  rulesBackButton.addEventListener("click", showLanding);
+  rulesStartButton.addEventListener("click", () => {
+    if (rulesOrigin === "pause") resumeFromRules();
+    else startGame(true);
+  });
+  rulesBackButton.addEventListener("click", () => {
+    if (rulesOrigin === "pause") returnToPauseMenu();
+    else showLanding();
+  });
   endStartButton.addEventListener("click", () => startGame(true));
   resumeButton.addEventListener("click", togglePause);
+  pauseHowToPlayButton.addEventListener("click", () => showRules(false, "pause"));
   exitGameButton.addEventListener("click", exitGame);
   pauseButton.addEventListener("click", togglePause);
   soundButton.addEventListener("click", () => {

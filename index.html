@@ -120,6 +120,7 @@
               <h2>TAKE FIVE</h2>
               <div class="pause-actions">
                 <button class="start-button" id="resumeButton" type="button">RESUME</button>
+                <button class="start-button pause-howto-button" id="pauseHowToPlayButton" type="button">HOW TO PLAY</button>
                 <button class="start-button pause-exit-button" id="exitGameButton" type="button">EXIT GAME</button>
               </div>
             </div>
@@ -155,9 +156,7 @@
             <div class="mini-control">
               <button class="mini-button sound-button" id="soundButton" type="button" aria-label="Mute music">
                 <svg class="music-icon" viewBox="0 0 32 32" aria-hidden="true">
-                  <path class="music-stems" d="M11 8v13M11 10l12-3v11" />
-                  <ellipse class="music-head" cx="7.5" cy="22" rx="4.5" ry="3.5" />
-                  <ellipse class="music-head" cx="19.5" cy="19" rx="4.5" ry="3.5" />
+                  <path class="music-note" d="M23 4.5v15.2a4.4 4.4 0 1 1-2.7-4.05V9.3l-8.7 2.2v11.2a4.4 4.4 0 1 1-2.7-4.05V8.2L23 4.5Z" />
                   <path class="music-slash" d="M5 5l22 22" />
                 </svg>
               </button>
@@ -165,11 +164,13 @@
             </div>
             <div class="mini-control">
               <button class="mini-button play-button" id="pauseButton" type="button" aria-label="Start game">
-                <span class="play-icon" aria-hidden="true">
-                  <i class="play-triangle"></i>
-                  <i class="pause-bar pause-left"></i>
-                  <i class="pause-bar pause-right"></i>
-                </span>
+                <svg class="play-icon" viewBox="0 0 32 32" aria-hidden="true">
+                  <path class="play-shape" d="M10 6.5v19l15-9.5L10 6.5Z" />
+                  <g class="pause-shape">
+                    <rect x="8.5" y="6.5" width="5.5" height="19" rx="1.5" />
+                    <rect x="18" y="6.5" width="5.5" height="19" rx="1.5" />
+                  </g>
+                </svg>
               </button>
               <span>PLAY</span>
             </div>
