@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#080d24" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Funda Champ Analytics</title>
+    <link rel="stylesheet" href="admin.css?v=2" />
+  </head>
+  <body>
+    <div class="ambient ambient-one" aria-hidden="true"></div>
+    <div class="ambient ambient-two" aria-hidden="true"></div>
+
+    <section class="login-shell" id="loginView">
+      <div class="login-card">
+        <img src="../assets/funda-logo.png" alt="Funda" />
+        <p class="kicker">FUNDA CHAMP ADMIN</p>
+        <h1>Player analytics</h1>
+        <p class="login-copy">Enter any email and the shared Funda Champ password.</p>
+        <form id="loginForm">
+          <label>
+            Email
+            <input id="loginEmail" name="email" type="email" autocomplete="email" required />
+          </label>
+          <label>
+            Password
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" minlength="8" required />
+          </label>
+          <p class="form-error" id="loginError" role="alert"></p>
+          <button class="primary-button" id="loginButton" type="submit">SIGN IN</button>
+        </form>
+      </div>
+    </section>
+
+    <main class="dashboard hidden" id="dashboard">
+      <header class="dashboard-header">
+        <div class="brand-lockup">
+          <img src="../assets/funda-logo.png" alt="Funda" />
+          <div>
+            <p class="kicker">FUNDA CHAMP ADMIN</p>
+            <h1>Engagement dashboard</h1>
+          </div>
+        </div>
+        <div class="account-area">
+          <span id="accountEmail"></span>
+          <button class="outline-button" id="logoutButton" type="button">Log out</button>
+        </div>
+      </header>
+
+      <section class="toolbar panel">
+        <nav class="main-tabs" aria-label="Analytics sections">
+          <button class="tab active" data-tab="overview" type="button">Overview</button>
+          <button class="tab" data-tab="users" type="button">Users</button>
+        </nav>
+        <div class="toolbar-actions">
+          <button class="outline-button" id="refreshButton" type="button">Refresh data</button>
+          <button class="outline-button hidden" id="exportButton" type="button">Export users</button>
+        </div>
+      </section>
+
+      <section class="date-panel panel" aria-label="Report date range">
+        <div class="preset-tabs" id="presetTabs">
+          <button class="preset active" data-preset="today" type="button">Today</button>
+          <button class="preset" data-preset="yesterday" type="button">Yesterday</button>
+          <button class="preset" data-preset="3days" type="button">Last 3 days</button>
+          <button class="preset" data-preset="7days" type="button">Last 7 days</button>
+          <button class="preset" data-preset="custom" type="button">Custom</button>
+        </div>
+        <form class="custom-dates hidden" id="customDateForm">
+          <label>From <input id="fromDate" type="date" required /></label>
+          <label>To <input id="toDate" type="date" required /></label>
+          <button class="small-button" type="submit">Apply</button>
+        </form>
+        <div class="range-summary">
+          <strong id="rangeLabel"></strong>
+          <span>India Standard Time</span>
+        </div>
+      </section>
+
+      <div class="notice hidden" id="notice" role="status"></div>
+
+      <section id="overviewPanel">
+        <div class="metric-grid" id="metricGrid" aria-live="polite"></div>
+
+        <section class="retention panel">
+          <div class="section-heading">
+            <div>
+              <p class="kicker">RETURNING PLAYERS</p>
+              <h2>D0–D8+ user retention</h2>
+            </div>
+            <p>Cohorts are grouped by each player’s first day. D8+ means the player returned on day 8 or later.</p>
+          </div>
+          <div class="table-scroll">
+            <table class="retention-table">
+              <thead>
+                <tr>
+                  <th>Cohort date</th>
+                  <th>New users</th>
+                  <th>D0</th><th>D1</th><th>D2</th><th>D3</th><th>D4</th>
+                  <th>D5</th><th>D6</th><th>D7</th><th>D8+</th>
+                </tr>
+              </thead>
+              <tbody id="retentionBody"></tbody>
+            </table>
+          </div>
+          <footer class="table-footer">
+            <div class="legend"><i></i> Lower retention <i></i> Higher retention</div>
+            <span>Percent of the original cohort · India Standard Time</span>
+          </footer>
+        </section>
+      </section>
+
+      <section class="users-panel hidden" id="usersPanel">
+        <section class="panel users-card">
+          <div class="users-heading">
+            <div>
+              <p class="kicker">PLAYER ACTIVITY</p>
+              <h2>Users</h2>
+              <p id="usersCount"></p>
+            </div>
+            <label class="search-field">
+              <span>Search user ID</span>
+              <input id="userSearch" type="search" placeholder="Type a user ID…" />
+            </label>
+          </div>
+          <div class="table-scroll users-table-scroll">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th><button data-sort="userId">User ID</button></th>
+                  <th><button data-sort="gamesPlayed">Games played</button></th>
+                  <th><button data-sort="levelsCleared">Levels cleared</button></th>
+                  <th><button data-sort="timeSpentSeconds">Time spent</button></th>
+                  <th><button data-sort="activeDay">Active day</button></th>
+                  <th><button data-sort="firstSeenAt">First seen</button></th>
+                  <th><button data-sort="lastSeenAt">Last seen</button></th>
+                </tr>
+              </thead>
+              <tbody id="usersBody"></tbody>
+            </table>
+          </div>
+          <footer class="pagination">
+            <button class="outline-button" id="previousPage" type="button">Previous</button>
+            <span id="pageLabel"></span>
+            <button class="outline-button" id="nextPage" type="button">Next</button>
+          </footer>
+        </section>
+      </section>
+    </main>
+
+    <script src="admin.js?v=3" defer></script>
+  </body>
+</html>

@@ -25,7 +25,7 @@ body {
   background:
     radial-gradient(circle at 50% 20%, #323641 0, #14161b 40%, #090a0d 100%);
   font-family: "Courier New", Courier, monospace;
-  touch-action: none;
+  touch-action: manipulation;
   user-select: none;
 }
 
@@ -951,6 +951,7 @@ button {
   object-fit: contain;
   background: #050711;
   image-rendering: pixelated;
+  touch-action: none;
 }
 
 .screen-overlay {
@@ -1010,15 +1011,15 @@ button {
   box-shadow: 1px 1px 0 #173f73;
 }
 
-.pause-actions .pause-exit-button {
-  border: 1px solid rgba(255, 87, 117, .72);
-  color: #ff7890;
-  background: rgba(28, 8, 25, .78);
-  box-shadow: 4px 4px 0 #5f1931;
+.pause-actions .pause-restart-button {
+  border: 1px solid rgba(255, 224, 0, .72);
+  color: #ffe000;
+  background: rgba(34, 28, 5, .82);
+  box-shadow: 4px 4px 0 #6b5600;
 }
 
-.pause-actions .pause-exit-button:active {
-  box-shadow: 1px 1px 0 #5f1931;
+.pause-actions .pause-restart-button:active {
+  box-shadow: 1px 1px 0 #6b5600;
 }
 
 .end-screen {
@@ -1062,7 +1063,8 @@ button {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  overflow: hidden;
   padding: clamp(14px, 3cqw, 20px) clamp(13px, 3.5cqw, 22px);
   border: 2px solid #2453d5;
   border-radius: 4px;
@@ -1079,15 +1081,34 @@ button {
 
 .leaderboard ol {
   width: 100%;
+  flex: 1 1 auto;
   min-height: 0;
   margin: 0;
-  padding: 0;
+  padding: 0 5px 0 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: #315dd3 rgba(9, 15, 42, .72);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
   list-style: none;
-  counter-reset: rank;
+}
+
+.leaderboard ol::-webkit-scrollbar { width: 5px; }
+
+.leaderboard ol::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: rgba(9, 15, 42, .72);
+}
+
+.leaderboard ol::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #315dd3;
 }
 
 .leaderboard li {
-  counter-increment: rank;
   display: grid;
   grid-template-columns: clamp(32px, 9cqw, 46px) 1fr auto auto;
   gap: clamp(7px, 2.2cqw, 14px);
@@ -1098,17 +1119,28 @@ button {
   font-weight: 900;
 }
 
-.leaderboard li::before {
-  content: counter(rank, decimal-leading-zero);
+.leaderboard .board-rank {
   color: #7c88a9;
 }
 
 .leaderboard li.current { color: #ffe000; }
 
+.leaderboard li.current .board-rank { color: #ffe000; }
+
+.leaderboard .board-name {
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .leaderboard .board-level {
   color: #7c88a9;
   font-size: .88em;
 }
+
+.leaderboard .board-score { text-align: right; }
 
 .end-start-button {
   width: min(72%, 280px);
@@ -1270,7 +1302,7 @@ button {
   left: 16px;
   right: 16px;
   display: flex;
-  align-items: flex-end;
+  align-items: flex-start;
   justify-content: space-between;
   pointer-events: none;
 }
@@ -1310,7 +1342,8 @@ button {
 }
 
 .music-icon,
-.play-icon {
+.play-icon,
+.howto-icon {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -1324,6 +1357,12 @@ button {
   width: 30px;
   height: 30px;
   overflow: visible;
+}
+
+.howto-icon {
+  width: 30px;
+  height: 30px;
+  fill: #e6e7eb;
 }
 
 .music-note,
@@ -1396,4 +1435,210 @@ button {
 
 @media (min-width: 700px) {
   .console { border-radius: 44px 44px 70px 44px; }
+}
+
+.rules-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.rules-pause-restart { display: none; }
+
+/* The guide moves into the display when opened during a paused game. */
+.screen-wrap > .rules-page.is-in-game-screen {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  place-items: initial;
+  padding: 8px;
+  container-type: size;
+  background:
+    radial-gradient(circle at 50% 32%, rgba(32, 53, 128, .58), transparent 42%),
+    linear-gradient(180deg, #080d24 0%, #030510 76%, #02030a 100%);
+}
+
+.screen-wrap > .rules-page.is-in-game-screen.hidden { display: none; }
+
+.screen-wrap > .rules-page.is-in-game-screen .rules-back {
+  top: 8px;
+  left: 8px;
+  padding: 6px 8px;
+  font-size: clamp(8px, 2.3cqw, 11px);
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .rules-content {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: clamp(5px, 1.1cqh, 8px);
+  align-items: stretch;
+  padding: 33px 2px 2px;
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .rules-kicker {
+  margin: 0;
+  font-size: clamp(11px, 3cqw, 15px);
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .rules-title { display: none; }
+
+.screen-wrap > .rules-page.is-in-game-screen .rules-scenes {
+  width: 100%;
+  max-width: none;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: repeat(3, minmax(68px, 1fr));
+  gap: clamp(4px, 1cqh, 7px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 3px;
+  scrollbar-color: #315dd3 transparent;
+  scrollbar-width: thin;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .rules-scenes::-webkit-scrollbar { width: 4px; }
+.screen-wrap > .rules-page.is-in-game-screen .rules-scenes::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #315dd3;
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .rule-scene {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 44%) minmax(0, 56%);
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .rule-stage {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-right: 1px solid rgba(72, 104, 210, .32);
+  border-bottom: 0;
+  background-size: 22px 22px;
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .rule-caption {
+  min-width: 0;
+  min-height: 0;
+  grid-template-columns: clamp(26px, 6.5cqw, 36px) minmax(0, 1fr);
+  padding: 5px 7px;
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .rule-caption > span {
+  font-size: clamp(13px, 3.7cqw, 20px);
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .rule-caption strong {
+  font-size: clamp(9px, 2.55cqw, 13px);
+  line-height: 1.12;
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .scene-pacman-wrap {
+  width: clamp(29px, 8cqw, 43px);
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .scene-dots { left: 35%; right: 5%; }
+.screen-wrap > .rules-page.is-in-game-screen .scene-dots i,
+.screen-wrap > .rules-page.is-in-game-screen .chase-pack > i {
+  width: clamp(4px, 1.4cqw, 7px);
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .chase-pack { left: 4%; right: 4%; }
+.screen-wrap > .rules-page.is-in-game-screen .chase-pack .landing-ghost,
+.screen-wrap > .rules-page.is-in-game-screen .scene-ghost-wrap {
+  width: clamp(21px, 5.5cqw, 30px);
+  height: clamp(23px, 6cqw, 33px);
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .power-orb {
+  width: clamp(10px, 2.8cqw, 16px);
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .rules-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(6px, 1.8cqw, 10px);
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .rules-start,
+.screen-wrap > .rules-page.is-in-game-screen .rules-pause-restart {
+  width: 100%;
+  min-height: clamp(38px, 7cqh, 47px);
+  margin: 0;
+  padding-block: 6px;
+  font-size: clamp(10px, 2.8cqw, 15px);
+}
+
+.screen-wrap > .rules-page.is-in-game-screen .rules-pause-restart {
+  display: block;
+  border-color: rgba(255, 224, 0, .78);
+  color: #ffe000;
+  background: #171b31;
+  box-shadow: 5px 5px 0 #6b5600;
+}
+
+@media (max-height: 600px) {
+  .screen-wrap > .rules-page.is-in-game-screen { padding: 5px; }
+  .screen-wrap > .rules-page.is-in-game-screen .rules-back { top: 4px; left: 4px; padding: 4px 6px; }
+  .screen-wrap > .rules-page.is-in-game-screen .rules-content { gap: 3px; padding-top: 25px; }
+  .screen-wrap > .rules-page.is-in-game-screen .rules-scenes {
+    grid-template-rows: repeat(3, minmax(58px, 1fr));
+    gap: 3px;
+  }
+  .screen-wrap > .rules-page.is-in-game-screen .rules-start,
+  .screen-wrap > .rules-page.is-in-game-screen .rules-pause-restart {
+    min-height: 32px;
+    padding-block: 3px;
+  }
+}
+
+/* Paused games use the full-screen guide with both game actions visible. */
+.rules-page.is-pause-guide .rules-actions {
+  width: min(82vw, 310px);
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.rules-page.is-pause-guide .rules-start,
+.rules-page.is-pause-guide .rules-pause-restart {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  min-height: 50px;
+  margin: clamp(11px, 2vh, 16px) 0 0;
+  padding: 10px 8px;
+  font-size: clamp(11px, 3vw, 16px);
+  white-space: nowrap;
+}
+
+.rules-page.is-pause-guide .rules-pause-restart {
+  display: block;
+  border-color: rgba(255, 224, 0, .78);
+  color: #ffe000;
+  background: #171b31;
+  box-shadow: 5px 5px 0 #6b5600;
+}
+
+@media (max-height: 680px) {
+  .rules-page.is-pause-guide .rules-start,
+  .rules-page.is-pause-guide .rules-pause-restart {
+    min-height: 42px;
+    margin-top: 7px;
+    padding-block: 6px;
+  }
 }

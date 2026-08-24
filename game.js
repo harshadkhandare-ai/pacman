@@ -13,14 +13,15 @@
   const rulesStartLabel = document.getElementById("rulesStartLabel");
   const rulesBackButton = document.getElementById("rulesBackButton");
   const resumeButton = document.getElementById("resumeButton");
-  const pauseHowToPlayButton = document.getElementById("pauseHowToPlayButton");
-  const exitGameButton = document.getElementById("exitGameButton");
+  const restartGameButton = document.getElementById("restartGameButton");
   const endOverlay = document.getElementById("endOverlay");
   const endStartButton = document.getElementById("endStartButton");
   const finalScore = document.getElementById("finalScore");
   const leaderboardList = document.getElementById("leaderboardList");
   const pauseButton = document.getElementById("pauseButton");
-  const soundButton = document.getElementById("soundButton");
+  const quickHowToButton = document.getElementById("quickHowToButton");
+  const appShell = document.querySelector(".app-shell");
+  const consoleElement = document.getElementById("console");
   const screenWrap = document.getElementById("screenWrap");
   const dpadWell = document.querySelector(".dpad-well");
 
@@ -74,56 +75,62 @@
   };
   const OPPOSITE = { right: "left", left: "right", up: "down", down: "up", none: "none" };
   const GHOST_COLORS = ["#ff355e", "#ff85d6", "#42e6f5", "#ff9d3d"];
+  const DAILY_RIVAL_NAMES = [
+    "AARAV", "ADITYA", "ARJUN", "ATHARV", "DEV", "ISHAN", "KABIR", "KRISH",
+    "REYANSH", "ROHAN", "SHAURYA", "VIHAAN", "VIVAAN", "YASH",
+    "AANYA", "ADITI", "ANANYA", "ANVI", "AVNI", "DIYA", "ISHITA", "KIARA",
+    "MEERA", "MYRA", "NAVYA", "RIYA", "SAANVI", "TARA"
+  ];
   const GHOST_DIFFICULTIES = [
     {
       label: "EASY",
-      speed: 60,
-      frightenedSpeed: 38,
-      releases: [1, 7, 16, 26],
-      accuracy: 0.28,
-      scatter: 9,
-      chase: 5,
-      powerSeconds: 9
-    },
-    {
-      label: "EASY+",
-      speed: 68,
-      frightenedSpeed: 44,
-      releases: [0.75, 5, 11, 18],
-      accuracy: 0.42,
-      scatter: 8,
-      chase: 6,
+      speed: 72,
+      frightenedSpeed: 43,
+      releases: [0.5, 4, 8, 13],
+      accuracy: 0.48,
+      scatter: 7,
+      chase: 7,
       powerSeconds: 8
     },
     {
-      label: "NORMAL",
-      speed: 77,
-      frightenedSpeed: 50,
-      releases: [0.5, 3.5, 7.5, 12],
+      label: "EASY+",
+      speed: 81,
+      frightenedSpeed: 49,
+      releases: [0.25, 2.75, 5.5, 9],
       accuracy: 0.58,
-      scatter: 7,
-      chase: 7,
+      scatter: 6.5,
+      chase: 8,
       powerSeconds: 7
     },
     {
-      label: "HARD",
-      speed: 87,
-      frightenedSpeed: 57,
-      releases: [0.25, 2.25, 4.5, 7],
-      accuracy: 0.74,
+      label: "NORMAL",
+      speed: 90,
+      frightenedSpeed: 55,
+      releases: [0.1, 1.8, 3.75, 6],
+      accuracy: 0.7,
       scatter: 6,
-      chase: 8,
-      powerSeconds: 6
+      chase: 9,
+      powerSeconds: 6.25
+    },
+    {
+      label: "HARD",
+      speed: 99,
+      frightenedSpeed: 61,
+      releases: [0, 1, 2.25, 3.75],
+      accuracy: 0.82,
+      scatter: 5,
+      chase: 10,
+      powerSeconds: 5.5
     },
     {
       label: "EXPERT",
-      speed: 98,
-      frightenedSpeed: 64,
-      releases: [0, 1.25, 2.5, 3.75],
-      accuracy: 0.9,
-      scatter: 5,
-      chase: 10,
-      powerSeconds: 5
+      speed: 108,
+      frightenedSpeed: 68,
+      releases: [0, 0.5, 1.1, 1.8],
+      accuracy: 0.94,
+      scatter: 4,
+      chase: 12,
+      powerSeconds: 4.5
     }
   ];
   const TURN_WINDOW = 6;
@@ -194,14 +201,7 @@
   }
 
   function loadTodayBest() {
-    try {
-      const entries = JSON.parse(window.localStorage.getItem(dailyScoreKey()) || "[]");
-      return Array.isArray(entries) && entries.length
-        ? Math.max(...entries.map((entry) => Number(entry.score) || 0))
-        : 0;
-    } catch (_error) {
-      return 0;
-    }
+    return loadDailyBestEntry().score;
   }
 
   function dailyScoreKey() {
@@ -212,41 +212,123 @@
     return `funda-champ-daily-${year}-${month}-${day}`;
   }
 
-  function saveDailyScore() {
-    const entry = { id: currentRunId, score, level };
-    let entries = [];
+  function loadDailyBestEntry() {
     try {
-      entries = JSON.parse(window.localStorage.getItem(dailyScoreKey()) || "[]");
-      if (!Array.isArray(entries)) entries = [];
+      const saved = JSON.parse(window.localStorage.getItem(dailyScoreKey()) || "null");
+
+      // Migrate the previous format, which stored an array of individual runs.
+      if (Array.isArray(saved)) {
+        return saved.reduce((best, entry) => {
+          const candidate = {
+            score: Number(entry?.score) || 0,
+            level: Number(entry?.level) || 1
+          };
+          return candidate.score > best.score
+            || (candidate.score === best.score && candidate.level > best.level)
+            ? candidate
+            : best;
+        }, { score: 0, level: 1 });
+      }
+
+      return {
+        score: Number(saved?.score) || 0,
+        level: Number(saved?.level) || 1
+      };
     } catch (_error) {
-      entries = [];
+      return { score: 0, level: 1 };
     }
-    entries.push(entry);
-    entries.sort((a, b) => b.score - a.score || b.level - a.level);
-    entries = entries.slice(0, 5);
+  }
+
+  function seededDailyRandom() {
+    let seed = 2166136261;
+    const key = dailyScoreKey();
+    for (let index = 0; index < key.length; index += 1) {
+      seed ^= key.charCodeAt(index);
+      seed = Math.imul(seed, 16777619);
+    }
+
+    return () => {
+      seed += 0x6D2B79F5;
+      let value = seed;
+      value = Math.imul(value ^ (value >>> 15), value | 1);
+      value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+      return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function makeDailyRivals() {
+    const random = seededDailyRandom();
+    const names = [...DAILY_RIVAL_NAMES];
+    for (let index = names.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(random() * (index + 1));
+      [names[index], names[swapIndex]] = [names[swapIndex], names[index]];
+    }
+
+    return names.slice(0, 10).map((name, index) => {
+      const rivalScore = Math.round((450 + random() * 3150) / 10) * 10;
+      return {
+        id: `daily-rival-${index}`,
+        name,
+        score: rivalScore,
+        level: Math.min(5, Math.max(1, Math.floor(rivalScore / 1300) + 1)),
+        isUser: false
+      };
+    });
+  }
+
+  function buildDailyLeaderboard(userBest) {
+    const entries = [
+      ...makeDailyRivals(),
+      {
+        id: "you",
+        name: "YOU",
+        score: userBest.score,
+        level: userBest.level,
+        isUser: true
+      }
+    ];
+
+    entries.sort((a, b) => b.score - a.score || b.level - a.level || a.name.localeCompare(b.name));
+    return entries.map((entry, index) => ({ ...entry, rank: index + 1 }));
+  }
+
+  function saveDailyScore() {
+    const previousBest = loadDailyBestEntry();
+    const currentRun = { score, level };
+    const best = currentRun.score > previousBest.score
+      || (currentRun.score === previousBest.score && currentRun.level > previousBest.level)
+      ? currentRun
+      : previousBest;
+
     try {
-      window.localStorage.setItem(dailyScoreKey(), JSON.stringify(entries));
+      window.localStorage.setItem(dailyScoreKey(), JSON.stringify(best));
     } catch (_error) {
       // The current score still renders if browser storage is unavailable.
     }
-    return entries;
+    return buildDailyLeaderboard(best);
   }
 
   function renderDailyLeaderboard(entries) {
     leaderboardList.textContent = "";
-    entries.slice(0, 5).forEach((entry) => {
+    entries.forEach((entry) => {
       const item = document.createElement("li");
-      if (entry.id === currentRunId) item.classList.add("current");
+      if (entry.isUser) item.classList.add("current");
+      const rank = document.createElement("span");
       const name = document.createElement("span");
       const levelText = document.createElement("span");
       const scoreText = document.createElement("span");
-      name.textContent = entry.id === currentRunId ? "YOU" : "PLAYER";
+      rank.className = "board-rank";
+      rank.textContent = String(entry.rank).padStart(2, "0");
+      name.className = "board-name";
+      name.textContent = entry.name;
       levelText.className = "board-level";
       levelText.textContent = `LV ${entry.level}`;
+      scoreText.className = "board-score";
       scoreText.textContent = String(entry.score).padStart(6, "0");
-      item.append(name, levelText, scoreText);
+      item.append(rank, name, levelText, scoreText);
       leaderboardList.appendChild(item);
     });
+    leaderboardList.scrollTop = 0;
   }
 
   function tileCenter(col, row) {
@@ -396,6 +478,7 @@
       phaseTime = 0;
       makeBoard();
       resetActors();
+      window.PacmanTracking?.gameStarted();
     }
     state = "playing";
     resetMusicClock(0.22);
@@ -409,6 +492,7 @@
       rulesPage.classList.add("hidden");
       landingPage.classList.remove("is-leaving");
       rulesPage.classList.remove("is-leaving", "is-entering");
+      rulesPage.classList.remove("is-pause-guide");
       resetRulesCountdownButton();
     }, 360);
     pauseOverlay.classList.add("hidden");
@@ -441,7 +525,7 @@
     rulesStartButton.setAttribute("aria-label", "Start game now");
     rulesStartButton.classList.add("is-counting-down");
     rulesStartButton.style.setProperty("--countdown-progress", "0%");
-    rulesStartLabel.textContent = "GET READY...";
+    rulesStartLabel.textContent = "GETTING READY...";
 
     // Keep the preparation state on screen for a complete five seconds.
     // The visible five-second countdown is created only after this timeout.
@@ -473,10 +557,13 @@
     ensureAudio();
     cancelRulesCountdown();
     rulesOrigin = origin;
+    if (rulesPage.parentElement !== appShell) appShell.insertBefore(rulesPage, consoleElement);
+    rulesPage.classList.remove("is-in-game-screen");
+    rulesPage.classList.toggle("is-pause-guide", origin === "pause");
     preparationMusicActive = autoStart;
-    rulesBackButton.textContent = origin === "pause" ? "← PAUSE MENU" : "← BACK";
+    rulesBackButton.textContent = "← BACK";
     if (origin === "pause") {
-      rulesStartLabel.textContent = "RESUME GAME";
+      rulesStartLabel.textContent = "RESUME";
       rulesStartButton.setAttribute("aria-label", "Resume game");
     }
     if (autoStart) resetMusicClock(0.04);
@@ -507,6 +594,7 @@
     introTransitionTimer = window.setTimeout(() => {
       rulesPage.classList.add("hidden");
       rulesPage.classList.remove("is-leaving", "is-entering");
+      rulesPage.classList.remove("is-pause-guide");
     }, 360);
   }
 
@@ -518,6 +606,7 @@
       rulesPage.classList.remove("is-leaving", "is-entering");
       resetRulesCountdownButton();
       rulesBackButton.textContent = "← BACK";
+      rulesPage.classList.remove("is-pause-guide");
       rulesOrigin = "landing";
     }, 360);
   }
@@ -535,6 +624,7 @@
       rulesPage.classList.remove("is-leaving", "is-entering");
       resetRulesCountdownButton();
       rulesBackButton.textContent = "← BACK";
+      rulesPage.classList.remove("is-pause-guide");
       rulesOrigin = "landing";
     }, 360);
   }
@@ -560,16 +650,10 @@
     }
   }
 
-  function exitGame() {
-    state = "title";
-    preparationMusicActive = false;
-    confetti = [];
-    pauseOverlay.classList.add("hidden");
-    endOverlay.classList.add("hidden");
-    pauseButton.classList.remove("is-playing");
-    pauseButton.setAttribute("aria-label", "Start game");
-    pauseButton.nextElementSibling.textContent = "PLAY";
-    showLanding();
+  function openQuickHowTo() {
+    if (!rulesPage.classList.contains("hidden")) return;
+    if (state === "playing") togglePause();
+    if (state === "paused") showRules(false, "pause");
   }
 
   function ensureAudio() {
@@ -869,6 +953,7 @@
 
   function addScore(points) {
     score += points;
+    window.PacmanTracking?.updateSnapshot(score, level);
     if (!bonusAwarded && score >= 10000) {
       bonusAwarded = true;
       lives += 1;
@@ -897,6 +982,7 @@
   }
 
   function nextLevel() {
+    window.PacmanTracking?.levelCompleted(level, score);
     state = "levelclear";
     launchConfetti();
     blip(523.25, 0.09, "square", 0.035);
@@ -992,6 +1078,7 @@
     window.setTimeout(() => {
       if (lives <= 0) {
         state = "gameover";
+        window.PacmanTracking?.gameEnded("game_over", score, level);
         pauseButton.classList.remove("is-playing");
         pauseButton.setAttribute("aria-label", "Start game");
         pauseButton.nextElementSibling.textContent = "PLAY";
@@ -1257,11 +1344,24 @@
     }
   }
 
+  function triggerDpadHaptic() {
+    if (typeof navigator.vibrate !== "function") return;
+
+    try {
+      // A crisp pulse feels like a physical handheld button and finishes
+      // quickly enough to keep up with rapid direction changes.
+      navigator.vibrate(12);
+    } catch (_error) {
+      // Vibration can be blocked by browser or device preferences.
+    }
+  }
+
   dpadWell.addEventListener("pointerdown", (event) => {
     event.preventDefault();
 
     const button = event.target.closest("[data-direction]");
     if (button) {
+      triggerDpadHaptic();
       setDirection(button.dataset.direction);
       return;
     }
@@ -1274,11 +1374,11 @@
     const centerDeadZone = Math.min(bounds.width, bounds.height) * 0.1;
     if (Math.hypot(dx, dy) < centerDeadZone) return;
 
-    setDirection(
-      Math.abs(dx) > Math.abs(dy)
-        ? (dx > 0 ? "right" : "left")
-        : (dy > 0 ? "down" : "up")
-    );
+    const direction = Math.abs(dx) > Math.abs(dy)
+      ? (dx > 0 ? "right" : "left")
+      : (dy > 0 ? "down" : "up");
+    triggerDpadHaptic();
+    setDirection(direction);
   });
 
   window.addEventListener("keydown", (event) => {
@@ -1304,6 +1404,10 @@
   });
 
   screenWrap.addEventListener("pointerdown", (event) => {
+    if (state !== "playing" || event.target.closest(".screen-overlay")) {
+      touchStart = null;
+      return;
+    }
     ensureAudio();
     touchStart = { x: event.clientX, y: event.clientY };
   });
@@ -1329,21 +1433,9 @@
   });
   endStartButton.addEventListener("click", () => startGame(true));
   resumeButton.addEventListener("click", togglePause);
-  pauseHowToPlayButton.addEventListener("click", () => showRules(false, "pause"));
-  exitGameButton.addEventListener("click", exitGame);
+  restartGameButton.addEventListener("click", () => startGame(true));
   pauseButton.addEventListener("click", togglePause);
-  soundButton.addEventListener("click", () => {
-    soundOn = !soundOn;
-    soundButton.classList.toggle("active", !soundOn);
-    soundButton.classList.toggle("muted", !soundOn);
-    soundButton.setAttribute("aria-label", soundOn ? "Mute music" : "Turn music on");
-    if (soundOn) {
-      ensureAudio();
-      resetMusicClock(0.16);
-      blip(540, 0.07, "square", 0.035);
-      blip(760, 0.08, "square", 0.025, 0.07);
-    }
-  });
+  quickHowToButton.addEventListener("click", openQuickHowTo);
 
   document.addEventListener("pointerdown", ensureAudio, { passive: true });
 
