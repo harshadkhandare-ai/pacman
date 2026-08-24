@@ -4,7 +4,6 @@
   const SUPABASE_URL = "https://czzwqpyylagvannwsvix.supabase.co";
   const SUPABASE_PUBLIC_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6endxcHl5bGFndmFubndzdml4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMDQ4NTUsImV4cCI6MjEwMDg4MDg1NX0.NdkVn0IZe_FY0ZN9IvcajSeYhxZ04uD3_gKx3AERSks";
   const TRACKING_RPC = SUPABASE_URL + "/rest/v1/rpc/pacman_track_activity";
-  const ANONYMOUS_ID_KEY = "pacman-anonymous-user-id";
   const HEARTBEAT_INTERVAL_MS = 15000;
 
   function createUuid() {
@@ -16,19 +15,6 @@
     });
   }
 
-  function anonymousUserId() {
-    try {
-      let saved = window.localStorage.getItem(ANONYMOUS_ID_KEY);
-      if (!saved) {
-        saved = "anon:" + createUuid();
-        window.localStorage.setItem(ANONYMOUS_ID_KEY, saved);
-      }
-      return saved;
-    } catch (_error) {
-      return "anon:" + createUuid();
-    }
-  }
-
   function resolveUserId() {
     const params = new URLSearchParams(window.location.search);
     const supplied = window.PACMAN_USER_ID
@@ -37,10 +23,23 @@
       || params.get("userid")
       || params.get("uid");
     const normalized = String(supplied || "").trim().slice(0, 128);
-    return normalized || anonymousUserId();
+    if (!normalized || ["userid", "user_id", "undefined", "null"].includes(normalized.toLowerCase())) {
+      return null;
+    }
+    return normalized;
   }
 
   const userId = resolveUserId();
+  if (!userId) {
+    window.PacmanTracking = Object.freeze({
+      userId: null,
+      gameStarted() {},
+      updateSnapshot() {},
+      levelCompleted() {},
+      gameEnded() {}
+    });
+    return;
+  }
   let sessionId = null;
   let activeMilliseconds = 0;
   let activeStartedAt = null;
@@ -175,4 +174,3 @@
     gameEnded
   });
 })();
-

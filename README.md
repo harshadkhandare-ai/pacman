@@ -30,7 +30,7 @@ Pass the application user ID in the game URL:
 https://your-game.example/?user_id=YOUR_USER_ID
 ```
 
-The aliases `userId`, `userid`, and `uid` are also accepted. An embedding page can instead set `window.PACMAN_USER_ID` before `tracking.js` loads. If no ID is supplied, the game creates and stores a stable anonymous browser ID.
+The aliases `userId`, `userid`, and `uid` are also accepted. An embedding page can instead set `window.PACMAN_USER_ID` before `tracking.js` loads. If no valid ID is supplied, analytics tracking remains disabled for that browser and the visit is not counted in the admin portal.
 
 The integration records user arrivals, game starts, level completions, final scores, session status, and active time spent. A heartbeat updates active sessions every 15 seconds. Daily activity is grouped in India Standard Time for date filters and cohort retention.
 
