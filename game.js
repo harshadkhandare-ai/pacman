@@ -1345,14 +1345,46 @@
   }
 
   function triggerDpadHaptic() {
-    if (typeof navigator.vibrate !== "function") return;
+    const style = "light";
+    const payload = JSON.stringify({
+      action: "HAPTIC",
+      data: { style, durationMs: 12 },
+      source: "bridgekit-web",
+      timestamp: Date.now()
+    });
 
     try {
-      // A crisp pulse feels like a physical handheld button and finishes
-      // quickly enough to keep up with rapid direction changes.
-      navigator.vibrate(12);
+      // Prefer the native Android WebView bridge. navigator.vibrate is often
+      // unavailable or ignored inside WebView even when native haptics exist.
+      if (window.AndroidBridge && typeof window.AndroidBridge.haptic === "function") {
+        window.AndroidBridge.haptic(style);
+        return;
+      }
+      if (window.AndroidBridge && typeof window.AndroidBridge.postMessage === "function") {
+        window.AndroidBridge.postMessage(payload);
+        return;
+      }
+      if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === "function") {
+        window.ReactNativeWebView.postMessage(payload);
+        return;
+      }
+      if (window.Android && typeof window.Android.haptic === "function") {
+        window.Android.haptic(style);
+        return;
+      }
+      if (window.Android && typeof window.Android.vibrate === "function") {
+        window.Android.vibrate(12);
+        return;
+      }
     } catch (_error) {
-      // Vibration can be blocked by browser or device preferences.
+      // Fall through to the browser vibration API if the bridge rejects.
+    }
+
+    try {
+      // Browser fallback for supported Android browsers outside the WebView.
+      if (typeof navigator.vibrate === "function") navigator.vibrate(12);
+    } catch (_error) {
+      // Haptics are optional and must never interrupt direction input.
     }
   }
 

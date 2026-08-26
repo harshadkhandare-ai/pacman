@@ -15,6 +15,10 @@ Open `index.html` directly, or serve the folder with any static web server.
 
 The game uses the Web Audio API for its original chip-tune music and sound effects.
 
+## Android haptics bridge
+
+Every D-pad `pointerdown` requests a light native haptic. The game supports `AndroidBridge.haptic("light")`, a JSON `HAPTIC` action through `AndroidBridge.postMessage(...)` or `ReactNativeWebView.postMessage(...)`, and the legacy `Android.vibrate(12)` shape. `navigator.vibrate(12)` is used only as a browser fallback.
+
 ## Supabase tracking
 
 Tracking is stored in Supabase project `czzwqpyylagvannwsvix` in these tables:
