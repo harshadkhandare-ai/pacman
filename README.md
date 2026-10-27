@@ -19,24 +19,21 @@ The game uses the Web Audio API for its original chip-tune music and sound effec
 
 Every D-pad `pointerdown` requests a light native haptic. The game supports `AndroidBridge.haptic("light")`, a JSON `HAPTIC` action through `AndroidBridge.postMessage(...)` or `ReactNativeWebView.postMessage(...)`, and the legacy `Android.vibrate(12)` shape. `navigator.vibrate(12)` is used only as a browser fallback.
 
-## Supabase tracking
+## Activity tracking
 
-Tracking is stored in Supabase project `czzwqpyylagvannwsvix` in these tables:
+`tracking.js` sends gameplay to the Funda Activity Tracking API, `POST https://apip-preprod.classplusapp.com/funda/api/activity/events` (set `window.FUNDA_EVENTS_URL` before `tracking.js` loads to use another environment), with `app: "pacman"`.
 
-- `pacman_user_activity`
-- `pacman_game_sessions`
-- `pacman_level_completions`
-- `pacman_daily_activity`
-
-Pass the application user ID in the game URL:
+Open the game with the player's Funda token:
 
 ```text
-https://your-game.example/?user_id=YOUR_USER_ID
+https://your-game.example/?token=FUNDA_JWT
 ```
 
-The aliases `userId`, `userid`, and `uid` are also accepted. An embedding page can instead set `window.PACMAN_USER_ID` before `tracking.js` loads. If no valid ID is supplied, analytics tracking remains disabled for that browser and the visit is not counted in the admin portal.
+The backend reads the player from the token. The token is kept in localStorage for reloads. Without a token, tracking stays off.
 
-The integration records user arrivals, game starts, level completions, final scores, session status, and active time spent. A heartbeat updates active sessions every 15 seconds. Daily activity is grouped in India Standard Time for date filters and cohort retention.
+Each page load is one session (`session.sessionId`, `session.activeSeconds` = visible seconds so far). Events: `session_started`, `session_paused`, `session_resumed`, `session_ended`, `game_started {gameId, level}`, `level_completed {gameId, level, score, timeSpentSeconds}` and `game_ended {gameId, level, score, timeSpentSeconds, status}` where status is `game_over`, `restarted` or `abandoned`. Queued events are sent every 5 seconds in batches of up to 20; an empty batch every 30 seconds is the heartbeat.
+
+The admin portal in `admin/` still reads the old Supabase project and does not show data sent to the Funda API.
 
 ## Admin analytics
 

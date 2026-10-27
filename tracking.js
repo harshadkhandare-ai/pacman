@@ -1,10 +1,16 @@
 (() => {
   "use strict";
 
-  const SUPABASE_URL = "https://czzwqpyylagvannwsvix.supabase.co";
-  const SUPABASE_PUBLIC_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6endxcHl5bGFndmFubndzdml4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMDQ4NTUsImV4cCI6MjEwMDg4MDg1NX0.NdkVn0IZe_FY0ZN9IvcajSeYhxZ04uD3_gKx3AERSks";
-  const TRACKING_RPC = SUPABASE_URL + "/rest/v1/rpc/pacman_track_activity";
-  const HEARTBEAT_INTERVAL_MS = 15000;
+  // Funda Activity Tracking API: batches of up to 20 events per request, tied
+  // to a session. The player comes from the Bearer token, not the URL.
+  const ENDPOINT = window.FUNDA_EVENTS_URL
+    || "https://apip-preprod.classplusapp.com/funda/api/activity/events";
+  const APP = "pacman";
+  const TOKEN_KEY = "funda-token";
+  const BATCH_SIZE = 20;
+  const MAX_QUEUE = 200;
+  const FLUSH_INTERVAL_MS = 5000;
+  const HEARTBEAT_INTERVAL_MS = 30000;
 
   function createUuid() {
     if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -15,24 +21,24 @@
     });
   }
 
-  function resolveUserId() {
-    const params = new URLSearchParams(window.location.search);
-    const supplied = window.PACMAN_USER_ID
-      || params.get("user_id")
-      || params.get("userId")
-      || params.get("userid")
-      || params.get("uid");
-    const normalized = String(supplied || "").trim().slice(0, 128);
-    if (!normalized || ["userid", "user_id", "undefined", "null"].includes(normalized.toLowerCase())) {
+  // The host app opens the game with ?token=<Funda JWT>. The token is kept so
+  // reloads keep reporting for the same player.
+  function resolveToken() {
+    try {
+      const supplied = new URLSearchParams(window.location.search).get("token")?.trim();
+      if (supplied) {
+        localStorage.setItem(TOKEN_KEY, supplied);
+        return supplied;
+      }
+      return localStorage.getItem(TOKEN_KEY);
+    } catch {
       return null;
     }
-    return normalized;
   }
 
-  const userId = resolveUserId();
-  if (!userId) {
+  let token = resolveToken();
+  if (!token) {
     window.PacmanTracking = Object.freeze({
-      userId: null,
       gameStarted() {},
       updateSnapshot() {},
       levelCompleted() {},
@@ -40,49 +46,19 @@
     });
     return;
   }
-  let sessionId = null;
+
+  let sessionId = createUuid();
+  let gameId = null;
   let activeMilliseconds = 0;
-  let activeStartedAt = null;
-  let heartbeatTimer = 0;
+  let activeStartedAt = document.hidden ? null : performance.now();
+  let gameActiveStart = 0;
   let latestScore = 0;
   let latestLevel = 1;
-  let requestQueue = Promise.resolve();
-
-  function request(eventType, details = {}, keepalive = false) {
-    return window.fetch(TRACKING_RPC, {
-      method: "POST",
-      headers: {
-        apikey: SUPABASE_PUBLIC_KEY,
-        Authorization: "Bearer " + SUPABASE_PUBLIC_KEY,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        p_event_type: eventType,
-        p_user_id: userId,
-        p_session_id: details.sessionId || null,
-        p_level_number: details.level ?? null,
-        p_score: Math.max(0, Math.floor(details.score || 0)),
-        p_time_spent_seconds: Math.max(0, Math.floor(details.timeSpent || 0)),
-        p_status: details.status || null
-      }),
-      credentials: "omit",
-      keepalive
-    }).then((response) => {
-      if (!response.ok) throw new Error("Pac-Man tracking request failed");
-      return response;
-    });
-  }
-
-  function enqueue(eventType, details) {
-    requestQueue = requestQueue
-      .catch(() => {})
-      .then(() => request(eventType, details))
-      .catch(() => {});
-    return requestQueue;
-  }
+  let queue = [];
+  let sending = false;
+  let lastSentAt = 0;
 
   function updateActiveTime() {
-    if (!sessionId) return;
     const now = performance.now();
     if (activeStartedAt !== null) {
       activeMilliseconds += Math.max(0, now - activeStartedAt);
@@ -90,84 +66,129 @@
     activeStartedAt = document.hidden ? null : now;
   }
 
-  function timeSpentSeconds() {
+  function activeSeconds() {
     updateActiveTime();
     return Math.floor(activeMilliseconds / 1000);
   }
 
-  function sessionDetails(overrides = {}) {
+  function track(type, payload) {
+    if (!token) return;
+    queue.push({ eventId: createUuid(), type, ...(payload ? { payload } : {}) });
+    if (queue.length > MAX_QUEUE) queue = queue.slice(-MAX_QUEUE);
+    if (queue.length >= BATCH_SIZE) flush();
+  }
+
+  // Events carry UUIDs, so resending a batch after a failure is safe.
+  async function flush() {
+    if (!token || sending) return;
+    sending = true;
+    try {
+      do {
+        const events = queue.slice(0, BATCH_SIZE);
+        const response = await window.fetch(ENDPOINT, {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + token,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            app: APP,
+            session: { sessionId, activeSeconds: activeSeconds() },
+            events
+          }),
+          credentials: "omit",
+          keepalive: true
+        });
+        // A 4xx batch would fail again; only network errors and 5xx retry.
+        if (response.status >= 500) break;
+        if (response.status === 401) token = null;
+        lastSentAt = Date.now();
+        queue = queue.slice(events.length);
+      } while (queue.length && token);
+    } catch {
+      // Offline: the queue is sent with the next flush.
+    } finally {
+      sending = false;
+    }
+  }
+
+  function gameDetails(overrides = {}) {
     return {
-      sessionId,
+      gameId,
       level: latestLevel,
       score: latestScore,
-      timeSpent: timeSpentSeconds(),
+      timeSpentSeconds: Math.max(0, activeSeconds() - gameActiveStart),
       ...overrides
     };
   }
 
-  function sendHeartbeat() {
-    if (!sessionId) return;
-    enqueue("heartbeat", sessionDetails());
-  }
-
-  function stopHeartbeat() {
-    if (heartbeatTimer) window.clearInterval(heartbeatTimer);
-    heartbeatTimer = 0;
-  }
-
   function gameStarted() {
-    if (sessionId) {
-      enqueue("game_ended", sessionDetails({ status: "restarted" }));
+    if (gameId) {
+      track("game_ended", gameDetails({ status: "restarted" }));
     }
-
-    stopHeartbeat();
-    sessionId = createUuid();
-    activeMilliseconds = 0;
-    activeStartedAt = document.hidden ? null : performance.now();
+    gameId = createUuid();
+    gameActiveStart = activeSeconds();
     latestScore = 0;
     latestLevel = 1;
-    enqueue("game_started", sessionDetails());
-    heartbeatTimer = window.setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+    track("game_started", { gameId, level: 1 });
+    flush();
   }
 
   function updateSnapshot(score, level) {
-    if (!sessionId) return;
+    if (!gameId) return;
     latestScore = Math.max(latestScore, Math.floor(score || 0));
     latestLevel = Math.max(latestLevel, Math.floor(level || 1));
   }
 
   function levelCompleted(level, score) {
-    if (!sessionId) return;
+    if (!gameId) return;
     updateSnapshot(score, level);
-    enqueue("level_completed", sessionDetails({ level }));
+    track("level_completed", gameDetails({ level }));
+    flush();
   }
 
   function gameEnded(status, score, level) {
-    if (!sessionId) return;
+    if (!gameId) return;
     updateSnapshot(score, level);
-    const finalDetails = sessionDetails({ status: status || "abandoned" });
-    stopHeartbeat();
-    enqueue("game_ended", finalDetails);
-    sessionId = null;
-    activeStartedAt = null;
+    track("game_ended", gameDetails({ status: status || "abandoned" }));
+    gameId = null;
+    flush();
   }
 
   document.addEventListener("visibilitychange", () => {
-    if (!sessionId) return;
     updateActiveTime();
-    if (document.hidden) sendHeartbeat();
+    track(document.hidden ? "session_paused" : "session_resumed");
+    flush();
   });
 
   window.addEventListener("pagehide", () => {
-    if (!sessionId) return;
-    const finalDetails = sessionDetails({ status: "abandoned" });
-    request("game_ended", finalDetails, true).catch(() => {});
+    if (gameId) {
+      track("game_ended", gameDetails({ status: "abandoned" }));
+      gameId = null;
+    }
+    track("session_ended");
+    flush();
   });
 
-  enqueue("user_arrived", {});
+  window.addEventListener("pageshow", (event) => {
+    // Restored from the back-forward cache after session_ended.
+    if (!event.persisted) return;
+    sessionId = createUuid();
+    activeMilliseconds = 0;
+    activeStartedAt = document.hidden ? null : performance.now();
+    track("session_started");
+    flush();
+  });
+
+  // Queued events go out every few seconds; an empty batch is the heartbeat.
+  window.setInterval(() => {
+    if (queue.length || Date.now() - lastSentAt >= HEARTBEAT_INTERVAL_MS) flush();
+  }, FLUSH_INTERVAL_MS);
+
+  track("session_started");
+  flush();
 
   window.PacmanTracking = Object.freeze({
-    userId,
     gameStarted,
     updateSnapshot,
     levelCompleted,
