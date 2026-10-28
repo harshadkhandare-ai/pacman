@@ -21,11 +21,12 @@
     });
   }
 
-  // The host app opens the game with ?token=<Funda JWT>. The token is kept so
-  // reloads keep reporting for the same player.
+  // The host app opens the game with #token=<Funda JWT> (older builds used
+  // ?token=). The token is kept so reloads keep reporting for the same player.
   function resolveToken() {
     try {
-      const supplied = new URLSearchParams(window.location.search).get("token")?.trim();
+      const supplied = new URLSearchParams(window.location.hash.slice(1)).get("token")?.trim()
+        || new URLSearchParams(window.location.search).get("token")?.trim();
       if (supplied) {
         localStorage.setItem(TOKEN_KEY, supplied);
         return supplied;
