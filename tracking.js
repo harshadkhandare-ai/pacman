@@ -25,8 +25,10 @@
   // ?token=). The token is kept so reloads keep reporting for the same player.
   function resolveToken() {
     try {
-      const supplied = new URLSearchParams(window.location.hash.slice(1)).get("token")?.trim()
-        || new URLSearchParams(window.location.search).get("token")?.trim();
+      const url = new URL(window.location.href);
+      const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+      const pick = (k) => hash.get(k) || url.searchParams.get(k) || null;
+      const supplied = pick("token")?.trim();
       if (supplied) {
         localStorage.setItem(TOKEN_KEY, supplied);
         return supplied;
